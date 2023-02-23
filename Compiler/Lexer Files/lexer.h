@@ -10,6 +10,11 @@ typedef enum {RESWORD, ID , INT , SYMBOL, STRING, EOFile, ERR} TokenType;
 // IllSym: Illegal symbol in source file
 typedef enum {EofInCom , NewLnInStr , EofInStr , IllSym} LexErrCodes;
 
+static const char *keywords[] = {"class", "method", "function", "constructor", "int", "boolean", "char", "void", "var",
+"static", "field", "let", "do", "if", "else", "while", "return", "true", "false", "null", "this", "Array"};
+
+const char legalSymbols[] = {'{', '}', '(', ')', '[', ']', '.', ',', ';', '+', '-', '~', '<', '>', '=', '&', '|', '*', '/'};
+
 // a structure for representing tokens
 typedef struct {
   TokenType tp;		// the type of this token, e.g. INT

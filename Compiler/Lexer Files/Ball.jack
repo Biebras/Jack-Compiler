@@ -7,7 +7,7 @@
  * A graphical ball. Characterized by a screen location and distance of 
  * last destination. Has methods for drawing, erasing and moving on the screen.
  * The ball is displayed as a filled, 6-by-6 pixles rectangle. 
- */
+ */ 
 class Ball {
 
     field int x, y;               // the ball's screen location (in pixels)

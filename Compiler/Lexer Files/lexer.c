@@ -19,11 +19,13 @@ Date Work Commenced:
 #include <string.h>
 #include <ctype.h>
 #include "lexer.h"
+#include <unistd.h>
 
 
 // YOU CAN ADD YOUR OWN FUNCTIONS, DECLARATIONS AND VARIABLES HERE
 FILE* file;
-
+int lineNumber = 1;
+char fileName[32]; 
 
 // IMPLEMENT THE FOLLOWING functions
 //***********************************
@@ -43,7 +45,39 @@ int InitLexer (char* file_name)
         return 0;
     }
 
+    //only allow with .jack extension
+    if (strstr(file_name, ".jack") == NULL)
+    {
+        printf("Error: file must have .jack extension\n");
+        return 0;
+    }
+
+    strcpy(fileName, file_name);
     return 1;
+}
+
+/// @brief Get's next character in file. If next char is line break, iterate lline number
+/// @return return next character
+char GetChar()
+{
+    int ASCII = fgetc(file);
+    int c = (char)ASCII;
+
+    if (c == '\n')
+        lineNumber++;
+
+    return c;
+}
+
+//Peek character in file
+char PeekChar()
+{
+    int ASCII = fgetc(file);
+    int c = (char)ASCII;
+
+    ungetc(c, file);
+
+    return c;
 }
 
 /// @brief Ignores comments and white spaces
@@ -51,97 +85,210 @@ int InitLexer (char* file_name)
 /// @return On ignore success returns 1, on error returns 0
 int IgnoreSpacesAndComments()
 {
-    char c = getc(file);
+    char c = GetChar();
 
-    // Check for EOF
-    if (c == EOF)
+    // ignore white spaces and carriage returns and line breaks
+    while (isspace(c) || c == '\r' || c == '\n')
     {
-        return 1;
+        c = GetChar();
     }
 
-    while (isblank(c) || c == '\r' || c == '\n' || c == '/')
+    // Make sure that the comment is not a devide operator
+    if (c == '/')
     {
-        if(isblank(c) || c == '\n')
+        char peek = PeekChar();
+
+        if (peek != '/' && peek != '*')
         {
-            //ignore spaces
-            while (isblank(c) || c == '\n')
-            {
-                c = getc(file);
-            }
-        }
-
-        //ignore comments
-        if (c == '/')
-        {
-            c = getc(file);
-
-            //single line comment
-            if (c == '/')
-            {
-                while (c != '\n' && c != EOF)
-                {
-                    c = getc(file);
-                }
-            }
-            // multi line comment
-            else if (c == '*')
-            {
-                while (1)
-                {
-                    c = getc(file);
-
-                    if (c == EOF)
-                        return 0;
-                    
-                    // might be end of comment
-                    if (c == '*')
-                    {
-                        c = getc(file);
-
-                        if (c == EOF)
-                            return 0;
-
-                        // end of comment
-                        if(c == '/')
-                            break;
-                    }
-                }
-            }
-        }
-        else if (c == '\r')
-        {
-            c = getc(file);
+            ungetc(c, file);
+            return 1;
         }
     }
 
-    //undo last character as we needed to peek befor deciding the end of comment
+    // ignore line comments
+    if (c == '/' && PeekChar() == '/')
+    {
+        c = GetChar();
+
+        while (c != '\n')
+        {
+            c = GetChar();
+        }
+
+        return IgnoreSpacesAndComments();
+    }
+
+    // ignore block comments
+    if (c == '*')
+    {
+        while (1)
+        {
+            c = GetChar();
+
+            if (c == EOF)
+                return 0;
+
+            if (c == '*')
+            {
+                c = GetChar();
+
+                if (c == EOF)
+                    return 0;
+
+                if (c == '/')
+                {
+                    return IgnoreSpacesAndComments();
+                }
+            }
+        }
+    }
+
+    // unget the last character
     ungetc(c, file);
-
+    
     return 1;
+}
+
+Token EndOfFile(Token* token)
+{
+    strcpy(token->lx, "End of File");
+    token->tp = EOFile;
+    token->ln = lineNumber;
+    return *token;
 }
 
 // Get the next token from the source file
 Token GetNextToken ()
 {
     //Token init
-    Token t;
-    t.tp = ERR;
+    Token token;
+    token.tp = ERR;
+    //assign file name to token
+    strcpy(token.fl, fileName);
 
-    string result = IgnoreSpacesAndComments();
+    int result = IgnoreSpacesAndComments();
 
     if (result == 0)
     {
-        t.ec = (int)EofInCom;
-        return t;
+        strcpy(token.lx, "Error: unexpected eof in comment");
+        token.tp = ERR;
+        token.ln = lineNumber;
+        token.ec = (int)EofInCom;
+        return token;
     }
 
-    char tmp = 
-    char c = getc(file);
+    char tmp[128] = "";
+    char c = GetChar();
+    int charIndex = 0;
 
+    if (c == EOF)
+        return EndOfFile(&token);
 
+    //character is number
+    if (isalpha(c))
+    {
+        while (isalpha(c))
+        {
+            tmp[charIndex] = c;
+            charIndex++;
+            c = GetChar();
+        }
+        
+        ungetc(c, file);
+        tmp[charIndex] = '\0';
+        //copy string
+        strcpy(token.lx, tmp);
+        //assign line number
+        token.ln = lineNumber;
 
+        int keywordCount = sizeof(keywords) / sizeof(keywords[0]);
 
-    return t;
+        //Handle keywords
+        for (int i = 0; i < keywordCount; i++)
+        {
+            if(strcmp(tmp, keywords[i]) == 0)
+            {
+                token.tp = RESWORD;                
+                return token;
+            }
+        }
+
+        token.tp = ID;
+        return token;
+    }
+    // Handle strings
+    else if (c == '"')
+    {
+        c = GetChar();
+
+        while (c != '"')
+        {
+            // Check for EOF
+            if (c == EOF)
+            {
+                strcpy(token.lx, "Error: unexpected eof in string constant");
+                token.tp = ERR;
+                token.ln = lineNumber;
+                token.ec = (int)EofInStr;
+                return token;
+            }
+            
+            tmp[charIndex] = c;
+            charIndex++;
+            c = GetChar();
+        }
+
+        tmp[charIndex] = '\0';
+        //copy string
+        strcpy(token.lx, tmp);
+        //assign line number
+        token.ln = lineNumber;
+        //asign token type
+        token.tp = STRING;
+        
+        return token;
+    }
+    else if(isnumber(c))
+    {
+        while (isnumber(c))
+        {
+            tmp[charIndex] = c;
+            charIndex++;
+            c = PeekChar();
+        }
+
+        tmp[charIndex] = '\0';
+        //copy string
+        strcpy(token.lx, tmp);
+        //assign line number
+        token.ln = lineNumber;
+        //asign token type
+        token.tp = INT;
+
+        return token;
+    }
+    else //must be a symbol
+    {
+        int symbolCount = sizeof(legalSymbols) / sizeof(legalSymbols[0]);
+
+        //Handle symbols
+        for (int i = 0; i < symbolCount; i++)
+        {
+            if(c == legalSymbols[i])
+            {
+                token.tp = SYMBOL;
+                token.lx[0] = c;
+                token.lx[1] = '\0';
+                token.ln = lineNumber;
+                return token;
+            }
+        }
+
+        token.ec = (int)IllSym;
+        return token;
+    }
+
+    return token;
 }
 
 // peek (look) at the next token in the source file without removing it from the stream
@@ -160,22 +307,48 @@ int StopLexer ()
 	return 0;
 }
 
+// Return the string representation of the token type
+char* GetTokenName (TokenType tp)
+{
+    switch (tp)
+    {
+        case RESWORD:
+            return "RESWORD";
+        case ID:
+            return "ID";
+        case INT:
+            return "INT";
+        case SYMBOL:
+            return "SYMBOL";
+        case STRING:
+            return "STRING";
+        case EOFile:
+            return "EOFile";
+        case ERR:
+            return "ERR";
+        default:
+            return "ERR";
+    }
+}
+
 // do not remove the next line
 #ifndef TEST
 int main ()
 {
-	InitLexer("Ball.jack");
-
-    int result = IgnoreSpacesAndComments();
+    //get current directory
+	int result = InitLexer("Ball.jack");
 
     if (result == 0)
-    {
-        printf("Ignore error\n");
         return 0;
-    }
 
-    char c = getc(file);
-    printf("New start line: %c\n", c);
+    Token token = GetNextToken();
+    printf("< %s, %d, %s, %s >\n", token.fl, token.ln, token.lx, GetTokenName(token.tp));
+
+    while (token.tp != EOFile && token.tp != ERR)
+    {
+        token = GetNextToken();
+        printf("< %s, %d, %s, %s >\n", token.fl, token.ln, token.lx, GetTokenName(token.tp));
+    }
 
 	return 1;
 }
