@@ -21,11 +21,13 @@ Date Work Commenced:
 #include "lexer.h"
 #include <unistd.h>
 
-
 // YOU CAN ADD YOUR OWN FUNCTIONS, DECLARATIONS AND VARIABLES HERE
 FILE* file;
 int lineNumber = 1;
 char fileName[32]; 
+static const char *keywords[] = {"class", "method", "function", "constructor", "int", "boolean", "char", "void", "var",
+"static", "field", "let", "do", "if", "else", "while", "return", "true", "false", "null", "this", "Array"};
+const char legalSymbols[] = {'{', '}', '(', ')', '[', ']', '.', ',', ';', '+', '-', '~', '<', '>', '=', '&', '|', '*', '/'};
 
 // IMPLEMENT THE FOLLOWING functions
 //***********************************
@@ -93,20 +95,10 @@ int IgnoreSpacesAndComments()
         c = GetChar();
     }
 
-    // Make sure that the comment is not a devide operator
-    if (c == '/')
-    {
-        char peek = PeekChar();
-
-        if (peek != '/' && peek != '*')
-        {
-            ungetc(c, file);
-            return 1;
-        }
-    }
+    char peek = PeekChar();
 
     // ignore line comments
-    if (c == '/' && PeekChar() == '/')
+    if (c == '/' && peek == '/')
     {
         c = GetChar();
 
@@ -119,7 +111,7 @@ int IgnoreSpacesAndComments()
     }
 
     // ignore block comments
-    if (c == '*')
+    if (c == '/' && peek == '*')
     {
         while (1)
         {
@@ -144,7 +136,7 @@ int IgnoreSpacesAndComments()
     }
 
     // unget the last character
-    ungetc(c, file);
+        ungetc(c, file);
     
     return 1;
 }
@@ -232,6 +224,15 @@ Token GetNextToken ()
                 token.ec = (int)EofInStr;
                 return token;
             }
+
+            if (c == '\n')
+            {
+                strcpy(token.lx, "Error: unexpected line break in string constant");
+                token.tp = ERR;
+                token.ln = lineNumber;
+                token.ec = (int)NewLnInStr;
+                return token;
+            }
             
             tmp[charIndex] = c;
             charIndex++;
@@ -254,7 +255,7 @@ Token GetNextToken ()
         {
             tmp[charIndex] = c;
             charIndex++;
-            c = PeekChar();
+            c = GetChar();
         }
 
         tmp[charIndex] = '\0';
@@ -265,6 +266,7 @@ Token GetNextToken ()
         //asign token type
         token.tp = INT;
 
+        ungetc(c, file);
         return token;
     }
     else //must be a symbol
@@ -285,6 +287,9 @@ Token GetNextToken ()
         }
 
         token.ec = (int)IllSym;
+        token.ln = lineNumber;
+        token.tp = ERR;
+        strcpy(token.lx, "Error: illegal symbol in source file");
         return token;
     }
 
@@ -298,12 +303,33 @@ Token PeekNextToken ()
     Token t;
     t.tp = ERR;
 
+    int result = IgnoreSpacesAndComments();
+
+    if (result == 0)
+    {
+        strcpy(t.lx, "Error: unexpected eof in comment");
+        t.tp = ERR;
+        t.ln = lineNumber;
+        t.ec = (int)EofInCom;
+        return t;
+    }
+
+    int startCharIndex = ftell(file);
+    int startLine = lineNumber;
+
+    t = GetNextToken();
+
+    //Go back to starting position
+    fseek(file, startCharIndex, SEEK_SET);
+    lineNumber = startLine;
+
     return t;
 }
 
 // clean out at end, e.g. close files, free memory, ... etc
 int StopLexer ()
 {
+    fclose(file);
 	return 0;
 }
 
