@@ -249,9 +249,9 @@ Token GetNextToken ()
         
         return token;
     }
-    else if(isnumber(c))
+    else if(isdigit(c))
     {
-        while (isnumber(c))
+        while (isdigit(c))
         {
             tmp[charIndex] = c;
             charIndex++;
