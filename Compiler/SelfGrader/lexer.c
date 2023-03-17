@@ -8,10 +8,10 @@ I confirm that the following code has been developed and written by me and it is
 I also confirm that I have not copied any parts of this program from another person or any other source or facilitated someone to copy this program from me.
 I confirm that I will not publish the program online or share it with anyone without permission of the module leader.
 
-Student Name:
-Student ID:
-Email:
-Date Work Commenced:
+Student Name: Saulius Vincevičius
+Student ID: 201534935
+Email: sc21sv@leeds.ac.uk
+Date Work Commenced: 
 *************************************************************************/
 
 #include <stdlib.h>
@@ -26,8 +26,8 @@ FILE* file;
 int lineNumber = 1;
 char fileName[32]; 
 static const char *keywords[] = {"class", "method", "function", "constructor", "int", "boolean", "char", "void", "var",
-"static", "field", "let", "do", "if", "else", "while", "return", "true", "false", "null", "this", "Array"};
-const char legalSymbols[] = {'{', '}', '(', ')', '[', ']', '.', ',', ';', '+', '-', '~', '<', '>', '=', '&', '|', '*', '/'};
+"static", "field", "let", "do", "if", "else", "while", "return", "true", "false", "null", "this"};
+const char legalSymbols[] = {'{', '}', '(', ')', '[', ']', '.', ',', ';', '+', '-', '~', '<', '>', '=', '&', '|', '*', '/', '_'};
 
 // IMPLEMENT THE FOLLOWING functions
 //***********************************
@@ -54,6 +54,7 @@ int InitLexer (char* file_name)
         return 0;
     }
 
+    lineNumber = 1;
     strcpy(fileName, file_name);
     return 1;
 }
@@ -136,7 +137,7 @@ int IgnoreSpacesAndComments()
     }
 
     // unget the last character
-        ungetc(c, file);
+    ungetc(c, file);
     
     return 1;
 }
@@ -177,9 +178,9 @@ Token GetNextToken ()
         return EndOfFile(&token);
 
     //character is number
-    if (isalpha(c))
+    if (isalpha(c) || c == '_')
     {
-        while (isalpha(c))
+        while (isalpha(c) || isdigit(c) || c == '_')
         {
             tmp[charIndex] = c;
             charIndex++;
@@ -227,9 +228,10 @@ Token GetNextToken ()
 
             if (c == '\n')
             {
-                strcpy(token.lx, "Error: unexpected line break in string constant");
+                strcpy(token.lx, "Error: new line in string constant");
                 token.tp = ERR;
-                token.ln = lineNumber;
+                // go back 1 as error was on previous line
+                token.ln = lineNumber - 1;
                 token.ec = (int)NewLnInStr;
                 return token;
             }
@@ -362,7 +364,7 @@ char* GetTokenName (TokenType tp)
 int main ()
 {
     //get current directory
-	int result = InitLexer("Ball.jack");
+	int result = InitLexer("Main.jack");
 
     if (result == 0)
         return 0;
