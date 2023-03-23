@@ -5,6 +5,34 @@
 #include "lexer.h"
 #include "parser.h"
 
+void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char* errorMessage);
+void PrintError(char* errorMessage, ParserInfo* parserInfo);
+Token GetNextTokenWithErrorCheck(ParserInfo *pi);
+Token PeekNextTokenWithErrorCheck(ParserInfo *pi);
+ParserInfo ClassDeclar();
+ParserInfo MemberDeclar();
+ParserInfo ClassVarDeclar();
+ParserInfo Type();
+ParserInfo SubroutineDeclar();
+ParserInfo ParamList();
+ParserInfo SubroutineBody();
+ParserInfo Statement();
+ParserInfo VarDeclarStatement();
+ParserInfo LetStatement();
+ParserInfo IfStatement();
+ParserInfo WhileStatement();
+ParserInfo DoStatement();
+ParserInfo SubroutineCall();
+ParserInfo ExpressionList();
+ParserInfo ReturnStatement();
+ParserInfo Expression();
+ParserInfo RelationalExpression();
+ParserInfo ArithmeticExpression();
+ParserInfo Term();
+ParserInfo Factor();
+ParserInfo Operand();
+ParserInfo OperantIdentifier();
+
 // you can declare prototypes of parser functions below
 void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char* errorMessage)
 {
@@ -16,7 +44,7 @@ void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char*
 void PrintError(char* errorMessage, ParserInfo* parserInfo)
 {
 	Token token = parserInfo->tk;
-	printf("Error: %s at line %d in file %s.", errorMessage, token.ln, token.fl);
+	printf("Error: %s at line %d in file %s.\n", errorMessage, token.ln, token.fl);
 }
 
 Token GetNextTokenWithErrorCheck(ParserInfo *pi)
@@ -100,10 +128,9 @@ ParserInfo ClassDeclar()
 		return pi;
 	}
 
-	// Can have many member declarations
-	// TODO make this run multiple times!!!!!!!!!!!!!
 	t = PeekNextTokenWithErrorCheck(&pi);
 
+	// Can have many member declarations
 	// loop while t is not }
 	while (t.tp != SYMBOL || strcmp(t.lx, "}") != 0)
 	{
@@ -252,10 +279,10 @@ ParserInfo Type()
 		return pi;
 
 	// Check if type is found
-	if(t.tp != RESWORD || t.tp != ID)
+	if(t.tp != RESWORD && t.tp != ID)
 	{
 		Error(&pi, &t, illegalType, "type expected");
-		return;
+		return pi;
 	}
 
 	// Check if type is int, char or boolean
@@ -264,7 +291,7 @@ ParserInfo Type()
 		if(strcmp(t.lx, "int") != 0 && strcmp(t.lx, "char") != 0 && strcmp(t.lx, "boolean") != 0)
 		{
 			Error(&pi, &t, illegalType, "type expected");
-			return;
+			return pi;
 		}
 	}
 
@@ -278,7 +305,7 @@ ParserInfo SubroutineDeclar()
 	Token t = GetNextTokenWithErrorCheck(&pi);
 
 	if (t.tp == ERR)
-		return;
+		return pi;
 
 	if(t.tp != RESWORD)
 	{
@@ -305,7 +332,7 @@ ParserInfo SubroutineDeclar()
 		if (pi.er != none)
 			return pi;
 	}
-
+	
 	t = GetNextTokenWithErrorCheck(&pi);
 
 	if (t.tp == ERR)
@@ -356,12 +383,18 @@ ParserInfo ParamList()
 	ParserInfo pi;
 	pi.er = none;
 
-	pi = type();
+	Token t = PeekNextTokenWithErrorCheck(&pi);
 
-	if (pi.er != none)
+	if (t.tp == ERR)
 		return pi;
 
-	Token t = GetNextTokenWithErrorCheck(&pi);
+	// Check if close parenthesis is found
+	if(t.tp == SYMBOL && strcmp(t.lx, ")") == 0)
+		return pi;
+
+	pi = Type();
+
+	t = GetNextTokenWithErrorCheck(&pi);
 
 	if (t.tp == ERR)
 		return pi;
@@ -370,7 +403,7 @@ ParserInfo ParamList()
 	if(t.tp != ID)
 	{
 		Error(&pi, &t, idExpected, "parameter name expected");
-		return;
+		return pi;
 	}
 
 	// Can have many , following with type and identifier
@@ -382,7 +415,7 @@ ParserInfo ParamList()
 	// loop while next token is comma
 	while(t.tp == SYMBOL && strcmp(t.lx, ",") == 0)
 	{
-		pi = type();
+		pi = Type();
 
 		if (pi.er != none)
 			return pi;
@@ -584,6 +617,10 @@ ParserInfo VarDeclarStatement()
 	// Loop while next token is comma
 	while(t.tp == SYMBOL && strcmp(t.lx, ",") == 0)
 	{
+		// Skip comma
+		t = GetNextTokenWithErrorCheck(&pi);
+
+		// Get next token
 		t = GetNextTokenWithErrorCheck(&pi);
 
 		if (t.tp == ERR)
@@ -647,7 +684,7 @@ ParserInfo LetStatement()
 		return pi;
 	}
 
-	t = GetNextTokenWithErrorCheck(&pi);
+	t = PeekNextTokenWithErrorCheck(&pi);
 
 	// Check if next token is [ or =
 	if (t.tp != SYMBOL)
@@ -1057,7 +1094,7 @@ ParserInfo ExpressionList()
 	return pi;
 }
 
-ParserInfo ReturnStatemnt()
+ParserInfo ReturnStatement()
 {
 	ParserInfo pi;
 	pi.er = none;
@@ -1478,7 +1515,7 @@ int StopParser ()
 int main ()
 {
 	//Init parser
-	InitParser("Ball.jack");
+	InitParser("Main.jack");
 
 	//Start parsing
 	Parse();
