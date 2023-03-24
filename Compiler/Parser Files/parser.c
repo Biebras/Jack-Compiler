@@ -41,6 +41,13 @@ void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char*
 	PrintError(errorMessage, parserInfo);
 }
 
+void TokenError(ParserInfo* parserInfo, Token* token)
+{
+	parserInfo->er = lexerErr;
+	parserInfo->tk = *token;
+	printf("%s at line %d in file %s.", token->lx, token->ln, token->fl);
+}
+
 void PrintError(char* errorMessage, ParserInfo* parserInfo)
 {
 	Token token = parserInfo->tk;
@@ -53,7 +60,7 @@ Token GetNextTokenWithErrorCheck(ParserInfo *pi)
 
     if (t.tp == ERR)
     {
-        Error(pi, &t, lexerErr, t.lx);
+        TokenError(pi, &t);
     }
 
     return t;
@@ -65,7 +72,7 @@ Token PeekNextTokenWithErrorCheck(ParserInfo *pi)
 
 	if (t.tp == ERR)
 	{
-		Error(pi, &t, lexerErr, t.lx);
+		TokenError(pi, &t);
 	}
 
 	return t;
