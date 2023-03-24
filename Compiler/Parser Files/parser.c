@@ -44,7 +44,7 @@ void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char*
 void PrintError(char* errorMessage, ParserInfo* parserInfo)
 {
 	Token token = parserInfo->tk;
-	printf("Error: %s at line %d in file %s.\n", errorMessage, token.ln, token.fl);
+	printf("Error: %s at line %d in file %s. Error at %s token.\n", errorMessage, token.ln, token.fl, token.lx);
 }
 
 Token GetNextTokenWithErrorCheck(ParserInfo *pi)
@@ -83,6 +83,9 @@ ParserInfo Parse ()
 	pi.er = none;
 
 	pi = ClassDeclar();
+
+	if (pi.er == none)
+		printf("Parsing completed successfully!\n");
 
 	return pi;
 }
@@ -319,7 +322,7 @@ ParserInfo SubroutineDeclar()
 		return pi;
 	}
 
-	t = GetNextTokenWithErrorCheck(&pi);
+	t = PeekNextTokenWithErrorCheck(&pi);
 
 	if (t.tp == ERR)
 		return pi;
@@ -331,6 +334,18 @@ ParserInfo SubroutineDeclar()
 
 		if (pi.er != none)
 			return pi;
+	}
+	else if(t.tp == RESWORD && strcmp(t.lx, "void") == 0)
+	{
+		t = GetNextTokenWithErrorCheck(&pi);
+
+		if (t.tp == ERR)
+			return pi;
+	}
+	else
+	{
+		Error(&pi, &t, subroutineDeclarErr, "subroutine declaration must begin with constructor, function or method keyword");
+		return pi;
 	}
 	
 	t = GetNextTokenWithErrorCheck(&pi);
@@ -407,7 +422,7 @@ ParserInfo ParamList()
 	}
 
 	// Can have many , following with type and identifier
-	t = GetNextTokenWithErrorCheck(&pi);
+	t = PeekNextTokenWithErrorCheck(&pi);
 
 	if (t.tp == ERR)
 		return pi;
@@ -415,6 +430,9 @@ ParserInfo ParamList()
 	// loop while next token is comma
 	while(t.tp == SYMBOL && strcmp(t.lx, ",") == 0)
 	{
+		// Skip comma
+		t = GetNextTokenWithErrorCheck(&pi);
+
 		pi = Type();
 
 		if (pi.er != none)
@@ -440,11 +458,6 @@ ParserInfo ParamList()
 		// If next token is not comma, break
 		if(t.tp != SYMBOL || strcmp(t.lx, ",") != 0)
 			break;
-
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
 	}
 
 	return pi;
@@ -486,6 +499,7 @@ ParserInfo SubroutineBody()
 			return pi;
 	}
 
+	// Get the close curly brace
 	t = GetNextTokenWithErrorCheck(&pi);
 
 	if (t.tp == ERR)
@@ -686,7 +700,7 @@ ParserInfo LetStatement()
 
 	t = PeekNextTokenWithErrorCheck(&pi);
 
-	// Check if next token is [ or =
+	// Check if next token is "[" or "="
 	if (t.tp != SYMBOL)
 	{
 		Error(&pi, &t, syntaxError, "[ or = expected");
@@ -815,11 +829,14 @@ ParserInfo IfStatement()
 		if (pi.er != none)
 			return pi;
 
-		t = GetNextTokenWithErrorCheck(&pi);
+		t = PeekNextTokenWithErrorCheck(&pi);
 
 		if (t.tp == ERR)
 			return pi;
 	}
+
+	// Skip }
+	t = GetNextTokenWithErrorCheck(&pi);
 	
 	t = PeekNextTokenWithErrorCheck(&pi);
 
@@ -856,11 +873,14 @@ ParserInfo IfStatement()
 			if (pi.er != none)
 				return pi;
 
-			t = GetNextTokenWithErrorCheck(&pi);
+			t = PeekNextTokenWithErrorCheck(&pi);
 
 			if (t.tp == ERR)
 				return pi;
 		}
+
+		// Skip }
+		t = GetNextTokenWithErrorCheck(&pi);
 	}
 
 	return pi;
@@ -924,7 +944,6 @@ ParserInfo WhileStatement()
 		return pi;
 	}
 
-	// loop while next token is not }
 	while (t.tp != SYMBOL || strcmp(t.lx, "}") != 0)
 	{
 		pi = Statement();
@@ -932,11 +951,17 @@ ParserInfo WhileStatement()
 		if (pi.er != none)
 			return pi;
 
-		t = GetNextTokenWithErrorCheck(&pi);
+		t = PeekNextTokenWithErrorCheck(&pi);
 
 		if (t.tp == ERR)
 			return pi;
 	}
+
+	// Skip }
+	t = GetNextTokenWithErrorCheck(&pi);
+
+	if (t.tp == ERR)
+		return pi;
 
 	return pi;
 }
@@ -1059,14 +1084,21 @@ ParserInfo ExpressionList()
 	ParserInfo pi;
 	pi.er = none;
 
-	// Cheack if next token is expression
-	ParserInfo expresionPi = Expression();
+	Token t = PeekNextTokenWithErrorCheck(&pi);
 
-	// If expression is not found then return success
-	if (expresionPi.er != none)
+	if (t.tp == ERR)
 		return pi;
 
-	Token t = PeekNextTokenWithErrorCheck(&pi);
+	// Check if next token is ), if yes then there are no expressions
+	if (t.tp == SYMBOL && strcmp(t.lx, ")") == 0)
+		return pi;
+
+	pi = Expression();
+
+	if (pi.er != none)
+		return pi;
+	
+	t = PeekNextTokenWithErrorCheck(&pi);
 
 	if (t.tp == ERR)
 		return pi;
@@ -1158,7 +1190,7 @@ ParserInfo Expression()
 	//loop while next token is | or &
 	while (t.tp == SYMBOL && (strcmp(t.lx, "|") == 0 || strcmp(t.lx, "&") == 0))
 	{
-		// Skip | or & token
+		// Skip "|" or "&" token
 		t = GetNextTokenWithErrorCheck(&pi);
 
 		if (t.tp == ERR)
@@ -1313,11 +1345,6 @@ ParserInfo Factor()
 			if (t.tp == ERR)
 				return pi;
 		}
-		else
-		{
-			Error(&pi, &t, syntaxError, "Invalid symbol");
-			return pi;
-		}
 	}
 
 	pi = Operand();
@@ -1364,26 +1391,17 @@ ParserInfo Operand()
 		if (t.tp == ERR)
 			return pi;
 
-		ParserInfo expresionListPi = ExpressionList();
+		pi = Expression();
 
-		//if expression list has error, then it should be an expression
-		if (expresionListPi.er != none)
-		{
-			pi = Expression();
-
-			if (pi.er != none)
-				return pi;
-		}
-		else
-		{
-			pi = expresionListPi;
-		}
+		if (pi.er != none)
+			return pi;
 
 		t = GetNextTokenWithErrorCheck(&pi);
 
 		if (t.tp == ERR)
 			return pi;
 
+		// if next token is not )
 		if (t.tp != SYMBOL || strcmp(t.lx, ")") != 0)
 		{
 			Error(&pi, &t, closeParenExpected, "Close parenthesis expected");
@@ -1479,7 +1497,7 @@ ParserInfo OperantIdentifier()
 	//if next token is [
 	if (t.tp == SYMBOL && strcmp(t.lx, "[") == 0)
 	{
-		// Skip [ token
+		// Skip ( token
 		t = GetNextTokenWithErrorCheck(&pi);
 
 		if (t.tp == ERR)
@@ -1502,6 +1520,32 @@ ParserInfo OperantIdentifier()
 			return pi;
 		}
 	}
+	// if next token is (
+	else if(t.tp == SYMBOL && strcmp(t.lx, "(") == 0)
+	{
+		// Skip ( token
+		t = GetNextTokenWithErrorCheck(&pi);
+
+		if (t.tp == ERR)
+			return pi;
+
+		pi = ExpressionList();
+
+		if (pi.er != none)
+			return pi;
+
+		t = GetNextTokenWithErrorCheck(&pi);
+
+		if (t.tp == ERR)
+			return pi;
+
+		// Check if token is )
+		if (t.tp != SYMBOL || strcmp(t.lx, ")") != 0)
+		{
+			Error(&pi, &t, closeParenExpected, "Close parenthesis expected");
+			return pi;
+		}
+	}
 	
 	return pi;
 }
@@ -1515,7 +1559,7 @@ int StopParser ()
 int main ()
 {
 	//Init parser
-	InitParser("Main.jack");
+	InitParser("Square.jack");
 
 	//Start parsing
 	Parse();
