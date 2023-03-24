@@ -3,11 +3,12 @@
         {
             "type": "cppbuild",
             "label": "C/C++: gcc build active file",
-            "command": "/usr/bin/gcc",
+            "command": "gcc",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "${file}",
+                "${workspaceFolder}/Parser Files/lexer.c",
+                "${workspaceFolder}/Parser Files/parser.c",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}"
             ],
