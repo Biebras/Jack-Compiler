@@ -1,1 +1,0 @@
-< NewLineInStr.jack, 1, End of File, EOFile >

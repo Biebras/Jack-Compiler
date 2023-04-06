@@ -1,1 +1,0 @@
-< EofInComment.jack, 10, Error: unexpected eof in comment, ERR >
