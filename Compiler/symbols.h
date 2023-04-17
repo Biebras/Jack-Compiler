@@ -29,11 +29,14 @@ struct Scope
 };
 
 void InitSymbolTable();
-Symbol* CreateSymbolAtCurrentScope(char* name, char* type, char* kind);
-Symbol* CreateSymbolWithSubScopeAtCurrentScope(char* name, char* type, char* kind);
-Symbol* FindSymbolFromCurrentScope(char* name, char* type, char* kind);
-Symbol* FindSymbolInClass(char* className, char* name, char* type, char* kind);
-Symbol* FindParentClass();
+Scope* CreateClass(char* className, char* type, char* kind);
+Symbol* CreateSymbolAtScope(Scope* scope, char* name, char* type, char* kind, int createSubScope);
+Symbol* CreateSymbolAtCurrentScope(char* name, char* type, char* kind, int createSubScope);
+Scope* FindClass(char* className);
+Scope* FindParentClass();
+Symbol* FindSymbolAtCurrentScope(char* name);
+Symbol* FindGlobalSymbol(char* className, char* name);
+int IsUndeclearedSymbol(Symbol* symbol);
 void ResetCurrentScope();
 void EnterScope(Symbol* symbol);
 void ExitScope();

@@ -22,7 +22,6 @@ typedef enum {
 	closeBracketExpected,	// ] expected
 	equalExpected,			// = expected
 	syntaxError,			// any other kind of syntax error
-	// extend this list to include two types of semantic errors
 	undecIdentifier,		// undeclared identifier (e.g. class, subroutine, or variable)
 	redecIdentifier			// redeclaration of identifier in the same scope
 } SyntaxErrors;
