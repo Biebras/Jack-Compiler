@@ -10,6 +10,7 @@ void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char*
 void PrintError(char* errorMessage, ParserInfo* parserInfo);
 Token GetNextTokenWithErrorCheck(ParserInfo *pi);
 Token PeekNextTokenWithErrorCheck(ParserInfo *pi);
+Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, int createSubScope);
 ParserInfo ClassDeclar();
 ParserInfo MemberDeclar();
 ParserInfo ClassVarDeclar();
@@ -79,6 +80,28 @@ Token PeekNextTokenWithErrorCheck(ParserInfo *pi)
 	return t;
 }
 
+Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, int createSubScope)
+{
+	if (symbol == NULL)
+	{
+		symbol = CreateSymbolAtCurrentScope(name, type, kind, createSubScope);
+	}
+	else
+	{
+		if (IsUndeclearedSymbol(symbol))
+		{
+			strcpy(symbol->type, type);
+			strcpy(symbol->kind, kind);
+		}
+		else
+		{
+			return NULL;
+		}
+	}
+
+	return symbol;
+}
+
 int InitParser (char* file_name)
 {
 	InitLexer(file_name);
@@ -128,24 +151,13 @@ ParserInfo ClassDeclar()
 	}
 
 	// Create a scope for this class
-	Symbol* classSymbol = FindSymbolFromCurrentScope(t.lx);
+	Symbol* classSymbol = FindSymbolAtCurrentScope(t.lx);
+	classSymbol = DeclareSymbol(classSymbol, t.lx, "NULL", "class", 1);
 
-	if (classSymbol == NULL)
+	if(classSymbol == NULL)
 	{
-		classSymbol = CreateClass(t.lx, "NULL", "class");
-	}
-	else
-	{
-		if (IsUndeclearedSymbol(classSymbol))
-		{
-			strcpy(classSymbol->type, "NULL");
-			strcpy(classSymbol->kind, "class");
-		}
-		else
-		{
-			Error(&pi, &t, redecIdentifier, "class name already exists");
-			return pi;
-		}
+		Error(&pi, &t, redecIdentifier, "class name already exists");
+		return pi;
 	}
 	
 	t = GetNextTokenWithErrorCheck(&pi);
@@ -276,24 +288,13 @@ ParserInfo ClassVarDeclar()
 		return pi;
 	}
 
-	Symbol* symbol = FindSymbolFromCurrentScope(t.lx);
+	Symbol* symbol = FindSymbolAtCurrentScope(t.lx);
+	symbol = DeclareSymbol(symbol, t.lx, type, kind, 0);
 
-	if (symbol == NULL)
+	if(symbol == NULL)
 	{
-		CreateSymbolAtCurrentScope(t.lx, type, kind, 0);
-	}
-	else
-	{
-		if (IsUndeclearedSymbol(symbol))
-		{
-			strcpy(symbol->type, type);
-			strcpy(symbol->kind, kind);
-		}
-		else
-		{
-			Error(&pi, &t, redecIdentifier, "variable name already exists");
-			return pi;
-		}
+		Error(&pi, &t, redecIdentifier, "variable name already exists");
+		return pi;
 	}
 
 	// Can have many , following with identifier
@@ -315,24 +316,13 @@ ParserInfo ClassVarDeclar()
 		}
 
 		// Check if identifier is found
-		symbol = FindSymbolFromCurrentScope(t.lx);
+		symbol = FindSymbolAtCurrentScope(t.lx);
+		symbol = DeclareSymbol(symbol, t.lx, type, kind, 0);
 
-		if (symbol == NULL)
+		if(symbol == NULL)
 		{
-			CreateSymbolAtCurrentScope(t.lx, type, kind, 0);
-		}
-		else
-		{
-			if (IsUndeclearedSymbol(symbol))
-			{
-				strcpy(symbol->type, type);
-				strcpy(symbol->kind, kind);
-			}
-			else
-			{
-				Error(&pi, &t, redecIdentifier, "variable name already exists");
-				return pi;
-			}
+			Error(&pi, &t, redecIdentifier, "variable name already exists");
+			return pi;
 		}
 
 		t = GetNextTokenWithErrorCheck(&pi);
@@ -381,7 +371,7 @@ ParserInfo Type()
 
 	if (t.tp == ID)
 	{
-		Symbol* symbol = FindSymbolFromCurrentScope(t.lx);
+		Symbol* symbol = FindSymbolAtCurrentScope(t.lx);
 
 		if (symbol == NULL)
 		{
@@ -458,26 +448,13 @@ ParserInfo SubroutineDeclar()
 	}
 
 	// Find the symbol in the current scope
-	Symbol* symbol = FindSymbolFromCurrentScope(t.lx);
+	Symbol* symbol = FindSymbolAtCurrentScope(t.lx);
+	symbol = DeclareSymbol(symbol, t.lx, type, "subroutine", 1);
 
-	if (symbol == NULL)
+	if(symbol == NULL)
 	{
-		symbol = CreateSymbolWithSubScopeAtCurrentScope(t.lx, type, "subroutine");
-	}
-	else
-	{
-		if (IsUndeclearedSymbol(symbol))
-		{
-			// Update the symbol
-			strcpy(symbol->type, type);
-			strcpy(symbol->kind, "subroutine");
-			symbol->subScope = CreateScope(symbol);
-		}
-		else
-		{
-			Error(&pi, &t, redecIdentifier, "duplicate subroutine");
-			return pi;
-		}
+		Error(&pi, &t, redecIdentifier, "duplicate subroutine");
+		return pi;
 	}
 
 	// Enter the scope of this subroutine
@@ -524,10 +501,10 @@ ParserInfo ParamList()
 	ParserInfo pi;
 	pi.er = none;
 
-	Symbol* symbol = FindParentClass();
+	Scope* classScope = FindParentClass();
 
 	//Create this symbol for method
-	symbol = CreateSymbolAtCurrentScope("this", symbol->name, "argument");
+	Symbol* symbol = CreateSymbolAtCurrentScope("this", classScope->scopeSymbol->name, "argument", 0);
 
 	Token t = PeekNextTokenWithErrorCheck(&pi);
 
@@ -558,7 +535,7 @@ ParserInfo ParamList()
 	}
 
 	// add symbol to LOCAL subroutine scope
-	CreateSymbolAtCurrentScope(t.lx, type, "argument");
+	CreateSymbolAtCurrentScope(t.lx, type, "argument", 0);
 
 	// Can have many types and identifiers
 	t = PeekNextTokenWithErrorCheck(&pi);
@@ -591,7 +568,7 @@ ParserInfo ParamList()
 			Error(&pi, &t, idExpected, "parameter name expected");
 		}
 
-		CreateSymbolAtCurrentScope(t.lx, type, "argument");
+		CreateSymbolAtCurrentScope(t.lx, type, "argument", 0);
 
 		t = PeekNextTokenWithErrorCheck(&pi);
 
@@ -771,7 +748,7 @@ ParserInfo VarDeclarStatement()
 	}
 
 	// Create symbol in symbol table
-	CreateSymbolAtCurrentScope(t.lx, type, "var");
+	CreateSymbolAtCurrentScope(t.lx, type, "var", 0);
 
 	t = PeekNextTokenWithErrorCheck(&pi);
 
@@ -798,7 +775,7 @@ ParserInfo VarDeclarStatement()
 		}
 
 		// Create symbol in symbol table
-		CreateSymbolAtCurrentScope(t.lx, type, "var");
+		CreateSymbolAtCurrentScope(t.lx, type, "var", 0);
 
 		t = PeekNextTokenWithErrorCheck(&pi);
 
@@ -850,7 +827,7 @@ ParserInfo LetStatement()
 	}
 
 	// Check if symbol is in symbol table
-	if(FindSymbolFromCurrentScope(t.lx) == NULL)
+	if(FindSymbolAtCurrentScope(t.lx) == NULL)
 	{
 		Error(&pi, &t, syntaxError, "variable not declared");
 		return pi;
@@ -1197,7 +1174,7 @@ ParserInfo SubroutineCall()
 		if (classScope == NULL)
 		{
 			// Create undecleared class
-			CreateClass(className, "NULL", "NULL");
+			classScope = CreateClass(className, "NULL", "NULL");
 		}
 
 		// Skip "." token
@@ -1224,19 +1201,22 @@ ParserInfo SubroutineCall()
 		if (subroutineSymbol == NULL)
 		{
 			// Create undecleared subroutine
-			CreateSymbolAtScope(classScope, t.lx, "NULL", "NULL");
+			CreateSymbolAtScope(classScope, t.lx, "NULL", "NULL", 1);
 		}
 	}
 	else
 	{
 		// If next token is not . then the identifier is a subroutine name
-		Symbol* subroutineSymbol = FindSymbolFromCurrentScope(identifier);
+		Symbol* subroutineSymbol = FindSymbolAtCurrentScope(identifier);
+		Scope* classScope = FindParentClass();
 
-		// Check if subroutine is declared
-		if (subroutineSymbol == NULL)
+		if (classScope == NULL)
 		{
-			CreateSymbolWithSubScopeAtCurrentScope
-		}
+			Error(&pi, &t, syntaxError, "Subroutine call outside class");
+		}		
+
+		// Create undecleared subroutine
+		CreateSymbolAtScope(classScope, identifier, "NULL", "NULL", 1);
 	}
 
 	t = GetNextTokenWithErrorCheck(&pi);
@@ -1653,7 +1633,7 @@ ParserInfo Operand()
 		if (t.tp == ERR)
 			return pi;
 
-		Symbol* s = FindSymbolFromCurrentScope(t.lx);
+		Symbol* s = FindSymbolAtCurrentScope(t.lx);
 
 		if (s == NULL)
 		{
@@ -1706,7 +1686,7 @@ ParserInfo OperantIdentifier()
 		if (classScope == NULL)
 		{
 			// Create undecleared class
-			CreateClass(className, "NULL", "NULL");
+			classScope = CreateClass(className, "NULL", "NULL");
 		}
 
 		// Skip . token
@@ -1733,7 +1713,7 @@ ParserInfo OperantIdentifier()
 		if (subroutineSymbol == NULL)
 		{
 			// Create undecleared subroutine
-			CreateSymbolAtScope(classScope, t.lx, "NULL", "NULL");
+			CreateSymbolAtScope(classScope, t.lx, "NULL", "NULL", 1);
 		}
 
 		// Peek to prepare for next iteration
@@ -1745,13 +1725,21 @@ ParserInfo OperantIdentifier()
 	else
 	{
 		// If next token is not . then the identifier is a subroutine name
-		Symbol* subroutineSymbol = FindSymbolFromCurrentScope(identifier);
+		Symbol* subroutineSymbol = FindSymbolAtCurrentScope(identifier);
 
 		// Check if subroutine is declared
 		if (subroutineSymbol == NULL)
 		{
-			Error(&pi, &t, undecIdentifier, "identifier not declared");
-			return pi;
+			Scope* classScope = FindParentClass();
+
+			if (classScope == NULL)
+			{
+				Error(&pi, &t, syntaxError, "Subroutine outside class");
+				return pi;
+			}
+
+			// Create undecleared subroutine
+			CreateSymbolAtScope(classScope, identifier, "NULL", "NULL", 1);
 		}
 	}
 
@@ -1829,6 +1817,12 @@ int main ()
 	Parse();
 
 	//Stop parser
+	StopParser();
+
+	InitParser("Memory.jack");
+
+	Parse();
+
 	StopParser();
 
 	PrintSymbolTable();

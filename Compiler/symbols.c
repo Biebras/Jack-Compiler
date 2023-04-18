@@ -29,7 +29,7 @@ Scope* currentScope = NULL;
 
 void InitSymbolTable()
 {
-    Symbol* programSymbol = CreateSymbol("Program", "NULL", "NULL");
+    Symbol* programSymbol = CreateSymbol("Program", "NULL", "NULL", 1);
     programScope = CreateScope(programSymbol);
     currentScope = programScope;
 }
@@ -93,7 +93,7 @@ Scope* FindClass(char* className)
     {
         Symbol* programSymbol = programScope->symbols[i];
 
-        if (CompareToSymbols(programSymbol, className, "NULL", "class"))
+        if (strcmp(programSymbol->name, className) == 0)
         {
             return programSymbol->subScope;
         } 
