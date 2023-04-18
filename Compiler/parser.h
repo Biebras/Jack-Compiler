@@ -1,7 +1,7 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-//#define TEST_PARSER  // uncomment to run selfgrader for the parser
+#define TEST_PARSER  // uncomment to run selfgrader for the parser
 
 #include "lexer.h"
 

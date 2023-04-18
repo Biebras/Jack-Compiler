@@ -13,9 +13,54 @@ Student ID:
 Email:
 Date Work Commenced:
 *************************************************************************/
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dirent.h>
 
+#include "lexer.h"
+#include "parser.h"
+#include "symbols.h"
 #include "compiler.h"
 
+/// @brief Returns all files with .jack extension in the given directory. (From bing chat)
+/// @param dirPath Path to the directory.
+/// @param numFiles Number of files found.
+/// @return Array of file names.
+char** getJackFiles(char* dirPath, int* numFiles) 
+{
+    DIR* dir = opendir(dirPath);
+
+    if (dir == NULL) 
+	{
+        printf("Could not open directory %s\n", dirPath);
+        return NULL;
+    }
+
+    struct dirent* entry;
+    int count = 0;
+    char** files = NULL;
+
+    while ((entry = readdir(dir)) != NULL) 
+	{
+        if (entry->d_type == DT_REG) 
+		{
+            char* ext = strrchr(entry->d_name, '.');
+
+            if (ext && strcmp(ext, ".jack") == 0) 
+			{
+                files = realloc(files, sizeof(char*) * (count + 1));
+                files[count] = malloc(strlen(entry->d_name) + 1);
+                strcpy(files[count], entry->d_name);
+                count++;
+            }
+        }
+    }
+
+    closedir(dir);
+    *numFiles = count;
+    return files;
+}
 
 int InitCompiler ()
 {
@@ -26,8 +71,33 @@ ParserInfo compile (char* dir_name)
 {
 	ParserInfo p;
 
-	// write your code below
+	int numFiles;
+	char** buildInFiles = getJackFiles(".", &numFiles);
 
+	InitSymbolTable();
+
+	for (int i = 0; i < numFiles; i++)
+	{
+		InitParser(buildInFiles[i]);
+		Parse();
+		StopParser();
+	}
+
+	char** directoryFiles = getJackFiles(dir_name, &numFiles);
+
+	for (int i = 0; i < numFiles; i++)
+	{
+		char filePath[1024];
+		snprintf(filePath, sizeof(filePath), "%s/%s", dir_name, directoryFiles[i]);
+		
+		InitParser(filePath);
+		Parse();
+		StopParser();
+	}
+
+	PrintSymbolTable();
+
+	FreeSymbolTable();
 
 	p.er = none;
 	return p;
@@ -46,7 +116,7 @@ int main ()
 {
 	InitCompiler ();
 	ParserInfo p = compile ("Pong");
-	PrintError (p);
+	//PrintError (p);
 	StopCompiler ();
 	return 1;
 }

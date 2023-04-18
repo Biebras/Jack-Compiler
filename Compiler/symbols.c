@@ -17,9 +17,9 @@ Date Work Commenced: 2022-04-05
 
 #include "symbols.h"
 
-Scope* CreateScope(Symbol* scopeSymbol);
+Scope* CreateScope(Symbol* scopeSymbol, Scope* parentScope);
 void AddSymbol(Scope* scope, Symbol* symbol);
-Symbol* CreateSymbol(char* name, char* type, char* kind, int createSubScope);
+Symbol* CreateSymbol(char* name, char* type, char* kind, Scope* parentScope, int createSubScope);
 void PrintSymbol(Symbol* symbol);
 void PrintScope(Scope* scope);
 void FreeScope(Scope* scope);
@@ -29,17 +29,17 @@ Scope* currentScope = NULL;
 
 void InitSymbolTable()
 {
-    Symbol* programSymbol = CreateSymbol("Program", "NULL", "NULL", 1);
-    programScope = CreateScope(programSymbol);
+    Symbol* programSymbol = CreateSymbol("Program", "NULL", "NULL", NULL, 1);
+    programScope = CreateScope(programSymbol, NULL);
     currentScope = programScope;
 }
 
-Scope* CreateScope(Symbol* scopeSymbol)
+Scope* CreateScope(Symbol* scopeSymbol, Scope* parentScope)
 {
     Scope* scope = (Scope*)malloc(sizeof(Scope));
     scope->scopeSymbol = scopeSymbol;
     scope->length = 0;
-    scope->parentScope = currentScope;
+    scope->parentScope = parentScope;
     return scope;
 }
 
@@ -49,7 +49,7 @@ void AddSymbol(Scope* scope, Symbol* symbol)
     scope->length++;
 }
 
-Symbol* CreateSymbol(char* name, char* type, char* kind, int createSubScope)
+Symbol* CreateSymbol(char* name, char* type, char* kind, Scope* parentScope, int createSubScope)
 {
     Symbol* symbol = (Symbol*)malloc(sizeof(Symbol));
     strcpy(symbol->name, name);
@@ -59,7 +59,7 @@ Symbol* CreateSymbol(char* name, char* type, char* kind, int createSubScope)
 
     if (createSubScope == 1)
     {
-        symbol->subScope = CreateScope(symbol);
+        symbol->subScope = CreateScope(symbol, parentScope);
     }
 
     return symbol;
@@ -67,15 +67,14 @@ Symbol* CreateSymbol(char* name, char* type, char* kind, int createSubScope)
 
 Scope* CreateClass(char* className, char* type, char* kind)
 {
-    Symbol* classSymbol = CreateSymbol(className, type, kind, 1);
-    Scope* classScope = CreateScope(classSymbol);
+    Symbol* classSymbol = CreateSymbol(className, type, kind, programScope, 1);
     AddSymbol(programScope, classSymbol);
-    return classScope;
+    return classSymbol->subScope;
 }
 
 Symbol* CreateSymbolAtScope(Scope* scope, char* name, char* type, char* kind, int createSubScope)
 {
-    Symbol* symbol = CreateSymbol(name, type, kind, createSubScope);
+    Symbol* symbol = CreateSymbol(name, type, kind, currentScope, createSubScope);
     AddSymbol(scope, symbol);
     return symbol;
 }
@@ -239,7 +238,14 @@ void PrintScope(Scope* scope)
     
     char* scopeName = scope->scopeSymbol == NULL ? "NULL" : scope->scopeSymbol->name;
 
-    printf("==%s SCOPE START==\n", scopeName);
+    if (scope->parentScope == programScope)
+    {
+         printf("\n=============================== %s CLASS SCOPE START ===============================\n", scopeName);
+    }
+    else
+    {
+        printf("== %s SCOPE START ==\n", scopeName);
+    }
 
     if (scope->scopeSymbol != NULL)
     {
@@ -261,7 +267,14 @@ void PrintScope(Scope* scope)
         }
     }
 
-    printf("==%s SCOPE END==\n", scopeName);
+    if (scope->parentScope == programScope)
+    {
+         printf("=============================== %s CLASS SCOPE END ===============================\n\n", scopeName);
+    }
+    else
+    {
+        printf("== %s SCOPE END ==\n", scopeName);
+    }
 }
 
 void PrintSymbolTable()

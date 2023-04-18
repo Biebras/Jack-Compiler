@@ -369,17 +369,17 @@ ParserInfo Type()
 		}
 	}
 
+	// If type is identifier, then it's a class name
 	if (t.tp == ID)
 	{
-		Symbol* symbol = FindSymbolAtCurrentScope(t.lx);
+		Scope* classScope = FindClass(t.lx);
 
-		if (symbol == NULL)
+		if (classScope == NULL)
 		{
-			Error(&pi, &t, undecIdentifier, "undefined identifier");
-			return pi;
+			//Create undefined class
+			CreateClass(t.lx, "NULL", "NULL");
 		}
 	}
-	
 
 	return pi;
 }
