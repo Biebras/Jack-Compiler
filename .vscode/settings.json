@@ -16,6 +16,8 @@
         "ratio": "c",
         "tuple": "c",
         "utility": "c",
-        "symbols.h": "c"
+        "symbols.h": "c",
+        "unistd.h": "c",
+        "lexer.h": "c"
     }
 }

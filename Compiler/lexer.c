@@ -189,6 +189,10 @@ Token GetNextToken ()
         
         ungetc(c, file);
         tmp[charIndex] = '\0';
+
+        if (c == '\n')
+            lineNumber--;
+        
         //copy string
         strcpy(token.lx, tmp);
         //assign line number
@@ -260,6 +264,9 @@ Token GetNextToken ()
             c = GetChar();
         }
 
+        if (c == '\n')
+            lineNumber--;
+
         tmp[charIndex] = '\0';
         //copy string
         strcpy(token.lx, tmp);
@@ -302,6 +309,7 @@ Token GetNextToken ()
 Token PeekNextToken ()
 {
     //Token init
+    int startCharIndex = ftell(file);
     Token t;
     t.tp = ERR;
 
@@ -316,7 +324,7 @@ Token PeekNextToken ()
         return t;
     }
 
-    int startCharIndex = ftell(file);
+    startCharIndex = ftell(file);
     int startLine = lineNumber;
 
     t = GetNextToken();
@@ -364,7 +372,7 @@ char* GetTokenName (TokenType tp)
 int main ()
 {
     //get current directory
-	int result = InitLexer("Main.jack");
+	int result = InitLexer("Output.jack");
 
     if (result == 0)
         return 0;

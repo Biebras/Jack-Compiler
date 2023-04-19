@@ -4,13 +4,11 @@
 
 #include "lexer.h"
 #include "parser.h"
-#include "symbols.h"
 
 void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char* errorMessage);
 void PrintError(char* errorMessage, ParserInfo* parserInfo);
 Token GetNextTokenWithErrorCheck(ParserInfo *pi);
 Token PeekNextTokenWithErrorCheck(ParserInfo *pi);
-Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, int createSubScope);
 ParserInfo ClassDeclar();
 ParserInfo MemberDeclar();
 ParserInfo ClassVarDeclar();
@@ -34,6 +32,9 @@ ParserInfo Term();
 ParserInfo Factor();
 ParserInfo Operand();
 ParserInfo OperantIdentifier();
+
+#define NEXT_TOKEN t = GetNextTokenWithErrorCheck(&pi); if(t.tp == ERR){TokenError(&pi, &t); return pi;}
+#define PEEK_TOKEN t = PeekNextTokenWithErrorCheck(&pi); if(t.tp == ERR){TokenError(&pi, &t); return pi;}
 
 // you can declare prototypes of parser functions below
 void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char* errorMessage)
@@ -80,35 +81,13 @@ Token PeekNextTokenWithErrorCheck(ParserInfo *pi)
 	return t;
 }
 
-Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, int createSubScope)
-{
-	if (symbol == NULL)
-	{
-		symbol = CreateSymbolAtCurrentScope(name, type, kind, createSubScope);
-	}
-	else
-	{
-		if (IsUndeclearedSymbol(symbol))
-		{
-			strcpy(symbol->type, type);
-			strcpy(symbol->kind, kind);
-		}
-		else
-		{
-			return NULL;
-		}
-	}
-
-	return symbol;
-}
-
 int InitParser (char* file_name)
 {
 	InitLexer(file_name);
 	return 1;
 }
 
-ParserInfo Parse()
+ParserInfo Parse ()
 {
 	ParserInfo pi;
 	pi.er = none;
@@ -123,13 +102,11 @@ ParserInfo Parse()
 
 ParserInfo ClassDeclar()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 	
 	// Check if class keyword is found
 	if(t.tp != RESWORD || strcmp(t.lx, "class") != 0)
@@ -138,10 +115,7 @@ ParserInfo ClassDeclar()
 		return pi;
 	}
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if class name is found
 	if(t.tp != ID)
@@ -150,20 +124,7 @@ ParserInfo ClassDeclar()
 		return pi;
 	}
 
-	// Create a scope for this class
-	Symbol* classSymbol = FindSymbolAtCurrentScope(t.lx);
-	classSymbol = DeclareSymbol(classSymbol, t.lx, "NULL", "class", 1);
-
-	if(classSymbol == NULL)
-	{
-		Error(&pi, &t, redecIdentifier, "class name already exists");
-		return pi;
-	}
-	
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if open brace is found
 	if(t.tp != SYMBOL || strcmp(t.lx, "{") != 0)
@@ -172,10 +133,7 @@ ParserInfo ClassDeclar()
 		return pi;
 	}
 
-	// Enter class scope
-	EnterScope(classSymbol);
-
-	t = PeekNextTokenWithErrorCheck(&pi);
+	PEEK_TOKEN
 
 	// Can have many member declarations
 	// loop while t is not }
@@ -186,16 +144,10 @@ ParserInfo ClassDeclar()
 		if (pi.er != none)
 			return pi;
 
-		t = PeekNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		PEEK_TOKEN
 	}
 	
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	//Cheack if close brace is found
 	if(t.tp != SYMBOL || strcmp(t.lx, "}") != 0)
@@ -204,24 +156,20 @@ ParserInfo ClassDeclar()
 		return pi;
 	}
 
-	ExitScope();
-
 	return pi;
 }
 
 ParserInfo MemberDeclar()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
-	// Peek token to decide to go to class var declaration ot subroutine declaration
-	Token t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	
+	PEEK_TOKEN
 
 	if(t.tp != RESWORD)
 	{
-		Error(&pi, &t, memberDeclarErr, "class member declarations must begin with static, field, constructor, function or method keyword");
+		Error(&pi, &t, memberDeclarErr, "class member declaration must begin with static, field, constructor , function or method keyword");
 		return pi;
 	}
 
@@ -250,16 +198,11 @@ ParserInfo MemberDeclar()
 
 ParserInfo ClassVarDeclar()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	// Can have many class var declarations
-	Token t = GetNextTokenWithErrorCheck(&pi);
-	char kind[128];
-	strcpy(kind, t.lx);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if static or field is found
 	if(t.tp != RESWORD || ((strcmp(t.lx, "static") != 0 && strcmp(t.lx, "field") != 0)))
@@ -273,13 +216,7 @@ ParserInfo ClassVarDeclar()
 	if (pi.er != none)
 		return pi;
 
-	char type[128];
-	strcpy(type, pi.tk.lx);
-
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if identifier is found
 	if(t.tp != ID)
@@ -288,25 +225,12 @@ ParserInfo ClassVarDeclar()
 		return pi;
 	}
 
-	Symbol* symbol = FindSymbolAtCurrentScope(t.lx);
-	symbol = DeclareSymbol(symbol, t.lx, type, kind, 0);
-
-	if(symbol == NULL)
-	{
-		Error(&pi, &t, redecIdentifier, "variable name already exists");
-		return pi;
-	}
-
-	// Can have many , following with identifier
-	t = GetNextTokenWithErrorCheck(&pi);
+	NEXT_TOKEN
 
 	// loop while next token is comma
 	while (t.tp == SYMBOL && strcmp(t.lx, ",") == 0)
 	{
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		// Check if identifier is found
 		if(t.tp != ID)
@@ -315,20 +239,7 @@ ParserInfo ClassVarDeclar()
 			return pi;
 		}
 
-		// Check if identifier is found
-		symbol = FindSymbolAtCurrentScope(t.lx);
-		symbol = DeclareSymbol(symbol, t.lx, type, kind, 0);
-
-		if(symbol == NULL)
-		{
-			Error(&pi, &t, redecIdentifier, "variable name already exists");
-			return pi;
-		}
-
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 	}
 
 	// Check if semicolon is found
@@ -343,14 +254,11 @@ ParserInfo ClassVarDeclar()
 
 ParserInfo Type()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = GetNextTokenWithErrorCheck(&pi);
-	pi.tk = t;
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if type is found
 	if(t.tp != RESWORD && t.tp != ID)
@@ -369,29 +277,16 @@ ParserInfo Type()
 		}
 	}
 
-	// If type is identifier, then it's a class name
-	if (t.tp == ID)
-	{
-		Scope* classScope = FindClass(t.lx);
-
-		if (classScope == NULL)
-		{
-			//Create undefined class
-			CreateClass(t.lx, "NULL", "NULL");
-		}
-	}
-
 	return pi;
 }
 
 ParserInfo SubroutineDeclar()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
-	Token t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	
+	NEXT_TOKEN
 
 	if(t.tp != RESWORD)
 	{
@@ -405,10 +300,7 @@ ParserInfo SubroutineDeclar()
 		return pi;
 	}
 
-	t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	// Check if void or type is found
 	if(t.tp != RESWORD || strcmp(t.lx, "void") != 0)
@@ -420,25 +312,15 @@ ParserInfo SubroutineDeclar()
 	}
 	else if(t.tp == RESWORD && strcmp(t.lx, "void") == 0)
 	{
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 	}
 	else
 	{
-		Error(&pi, &t, subroutineDeclarErr, "subroutines should return void or type");
+		Error(&pi, &t, subroutineDeclarErr, "subroutine declaration must begin with constructor, function or method keyword");
 		return pi;
 	}
-
-	// Type for symbol table
-	char type[128];
-	strcpy(type, t.lx);
 	
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if subroutine name is found
 	if(t.tp != ID)
@@ -447,23 +329,7 @@ ParserInfo SubroutineDeclar()
 		return pi;
 	}
 
-	// Find the symbol in the current scope
-	Symbol* symbol = FindSymbolAtCurrentScope(t.lx);
-	symbol = DeclareSymbol(symbol, t.lx, type, "subroutine", 1);
-
-	if(symbol == NULL)
-	{
-		Error(&pi, &t, redecIdentifier, "duplicate subroutine");
-		return pi;
-	}
-
-	// Enter the scope of this subroutine
-	EnterScope(symbol);
-
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if open parenthesis is found
 	if(t.tp != SYMBOL || strcmp(t.lx, "(") != 0)
@@ -477,7 +343,7 @@ ParserInfo SubroutineDeclar()
 	if (pi.er != none)
 		return pi;
 
-	t = GetNextTokenWithErrorCheck(&pi);
+	NEXT_TOKEN
 
 	if(t.tp != SYMBOL || strcmp(t.lx, ")") != 0)
 	{
@@ -490,27 +356,18 @@ ParserInfo SubroutineDeclar()
 	if (pi.er != none)
 		return pi;
 
-	// Exit the scope of this subroutine
-	ExitScope();
-
 	return pi;
 }
 
 ParserInfo ParamList()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Scope* classScope = FindParentClass();
+	PEEK_TOKEN
 
-	//Create this symbol for method
-	Symbol* symbol = CreateSymbolAtCurrentScope("this", classScope->scopeSymbol->name, "argument", 0);
-
-	Token t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
-
+	// Check if close parenthesis is found
 	if(t.tp != RESWORD && t.tp != ID)
 		return pi;
 
@@ -519,13 +376,7 @@ ParserInfo ParamList()
 	if (pi.er != none)
 		return pi;
 
-	char type[128];
-	strcpy(type, t.lx);
-
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if param name is found
 	if(t.tp != ID)
@@ -534,46 +385,29 @@ ParserInfo ParamList()
 		return pi;
 	}
 
-	// add symbol to LOCAL subroutine scope
-	CreateSymbolAtCurrentScope(t.lx, type, "argument", 0);
-
-	// Can have many types and identifiers
-	t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	// loop while next token is comma
 	while(t.tp == SYMBOL && strcmp(t.lx, ",") == 0)
 	{
 		// Skip comma
-		t = GetNextTokenWithErrorCheck(&pi);
+		NEXT_TOKEN
 
 		pi = Type();
 
 		if (pi.er != none)
 			return pi;
 
-		// Copy type to type variable for symbol table
-		strcpy(type, pi.tk.lx);
-
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		// Check if param name is found
 		if(t.tp != ID)
 		{
 			Error(&pi, &t, idExpected, "parameter name expected");
+			return pi;
 		}
 
-		CreateSymbolAtCurrentScope(t.lx, type, "argument", 0);
-
-		t = PeekNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		PEEK_TOKEN
 
 		// If next token is not comma, break
 		if(t.tp != SYMBOL || strcmp(t.lx, ",") != 0)
@@ -585,13 +419,11 @@ ParserInfo ParamList()
 
 ParserInfo SubroutineBody()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if open curly brace is found
 	if(t.tp != SYMBOL || strcmp(t.lx, "{") != 0)
@@ -600,10 +432,7 @@ ParserInfo SubroutineBody()
 		return pi;
 	}
 
-	t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (pi.er != none)
-		return pi;
+	PEEK_TOKEN
 
 	// loop while the next token is not }
 	while(t.tp != SYMBOL || strcmp(t.lx, "}") != 0)
@@ -613,17 +442,10 @@ ParserInfo SubroutineBody()
 		if (pi.er != none)
 			return pi;
 
-		t = PeekNextTokenWithErrorCheck(&pi);
-
-		if (pi.er != none)
-			return pi;
+		PEEK_TOKEN
 	}
 
-	// Get the close curly brace
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if close curly brace is found
 	if(t.tp != SYMBOL || strcmp(t.lx, "}") != 0)
@@ -637,13 +459,11 @@ ParserInfo SubroutineBody()
 
 ParserInfo Statement()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	// Expected var, let, if, while, do, return
 	if (t.tp != RESWORD)
@@ -711,13 +531,11 @@ ParserInfo Statement()
 
 ParserInfo VarDeclarStatement()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if var keyword is found
 	if(t.tp != RESWORD || strcmp(t.lx, "var") != 0)
@@ -731,14 +549,7 @@ ParserInfo VarDeclarStatement()
 	if (pi.er != none)
 		return pi;
 
-	// Copy type to type variable for symbol table
-	char type[128];
-	strcpy(type, pi.tk.lx);
-
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if var name is found
 	if(t.tp != ID)
@@ -747,25 +558,16 @@ ParserInfo VarDeclarStatement()
 		return pi;
 	}
 
-	// Create symbol in symbol table
-	CreateSymbolAtCurrentScope(t.lx, type, "var", 0);
-
-	t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	// Loop while next token is comma
 	while(t.tp == SYMBOL && strcmp(t.lx, ",") == 0)
 	{
 		// Skip comma
-		t = GetNextTokenWithErrorCheck(&pi);
+		NEXT_TOKEN
 
 		// Get next token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		// Check if var name is found
 		if(t.tp != ID)
@@ -774,19 +576,10 @@ ParserInfo VarDeclarStatement()
 			return pi;
 		}
 
-		// Create symbol in symbol table
-		CreateSymbolAtCurrentScope(t.lx, type, "var", 0);
-
-		t = PeekNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		PEEK_TOKEN
 	}
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if semicolon is found
 	if(t.tp != SYMBOL || strcmp(t.lx, ";") != 0)
@@ -800,13 +593,11 @@ ParserInfo VarDeclarStatement()
 
 ParserInfo LetStatement()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if let keyword is found
 	if(t.tp != RESWORD || strcmp(t.lx, "let") != 0)
@@ -815,25 +606,16 @@ ParserInfo LetStatement()
 		return pi;
 	}
 
-	t = GetNextTokenWithErrorCheck(&pi);
+	NEXT_TOKEN
 
-	if (t.tp == ERR)
-		return pi;
-
+	// Check if var name is found
 	if(t.tp != ID)
 	{
 		Error(&pi, &t, idExpected, "variable name expected");
 		return pi;
 	}
 
-	// Check if symbol is in symbol table
-	if(FindSymbolAtCurrentScope(t.lx) == NULL)
-	{
-		Error(&pi, &t, syntaxError, "variable not declared");
-		return pi;
-	}
-
-	t = PeekNextTokenWithErrorCheck(&pi);
+	PEEK_TOKEN
 
 	// Check if next token is "[" or "="
 	if (t.tp != SYMBOL)
@@ -845,17 +627,11 @@ ParserInfo LetStatement()
 	// if next token is [ then check for expression
 	if (strcmp(t.lx, "[") == 0)
 	{
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		pi = Expression();
 
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		// Check if next token is ]
 		if (t.tp != SYMBOL || strcmp(t.lx, "]") != 0)
@@ -865,10 +641,7 @@ ParserInfo LetStatement()
 		}
 	}
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is =
 	if (t.tp != SYMBOL || strcmp(t.lx, "=") != 0)
@@ -882,10 +655,7 @@ ParserInfo LetStatement()
 	if (pi.er != none)
 		return pi;
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is ;
 	if (t.tp != SYMBOL || strcmp(t.lx, ";") != 0)
@@ -899,13 +669,11 @@ ParserInfo LetStatement()
 
 ParserInfo IfStatement()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if if keyword is found
 	if(t.tp != RESWORD || strcmp(t.lx, "if") != 0)
@@ -914,10 +682,7 @@ ParserInfo IfStatement()
 		return pi;
 	}
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is (
 	if (t.tp != SYMBOL || strcmp(t.lx, "(") != 0)
@@ -931,23 +696,16 @@ ParserInfo IfStatement()
 	if (pi.er != none)
 		return pi;
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is )
-
 	if (t.tp != SYMBOL || strcmp(t.lx, ")") != 0)
 	{
 		Error(&pi, &t, closeParenExpected, ") expected");
 		return pi;
 	}
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is {
 	if (t.tp != SYMBOL || strcmp(t.lx, "{") != 0)
@@ -964,34 +722,22 @@ ParserInfo IfStatement()
 		if (pi.er != none)
 			return pi;
 
-		t = PeekNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		PEEK_TOKEN
 	}
 
 	// Skip }
-	t = GetNextTokenWithErrorCheck(&pi);
+	NEXT_TOKEN
 	
-	t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	// Check if next token is else
 	if (t.tp == RESWORD && strcmp(t.lx, "else") == 0)
 	{
 		// Skip else keyword
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		// Get next token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		// Check if next token is {
 		if (t.tp != SYMBOL || strcmp(t.lx, "{") != 0)
@@ -1008,14 +754,11 @@ ParserInfo IfStatement()
 			if (pi.er != none)
 				return pi;
 
-			t = PeekNextTokenWithErrorCheck(&pi);
-
-			if (t.tp == ERR)
-				return pi;
+			PEEK_TOKEN
 		}
 
 		// Skip }
-		t = GetNextTokenWithErrorCheck(&pi);
+		NEXT_TOKEN
 	}
 
 	return pi;
@@ -1023,13 +766,11 @@ ParserInfo IfStatement()
 
 ParserInfo WhileStatement()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if while keyword is found
 	if(t.tp != RESWORD || strcmp(t.lx, "while") != 0)
@@ -1038,10 +779,7 @@ ParserInfo WhileStatement()
 		return pi;
 	}
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is (
 	if (t.tp != SYMBOL || strcmp(t.lx, "(") != 0)
@@ -1055,10 +793,7 @@ ParserInfo WhileStatement()
 	if (pi.er != none)
 		return pi;
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is )
 	if (t.tp != SYMBOL || strcmp(t.lx, ")") != 0)
@@ -1067,10 +802,7 @@ ParserInfo WhileStatement()
 		return pi;
 	}
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is {
 	if (t.tp != SYMBOL || strcmp(t.lx, "{") != 0)
@@ -1086,30 +818,22 @@ ParserInfo WhileStatement()
 		if (pi.er != none)
 			return pi;
 
-		t = PeekNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		PEEK_TOKEN
 	}
 
 	// Skip }
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	return pi;
 }
 
 ParserInfo DoStatement()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if do keyword is found
 	if(t.tp != RESWORD || strcmp(t.lx, "do") != 0)
@@ -1123,10 +847,7 @@ ParserInfo DoStatement()
 	if (pi.er != none)
 		return pi;
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is ;
 	if (t.tp != SYMBOL || strcmp(t.lx, ";") != 0)
@@ -1140,13 +861,11 @@ ParserInfo DoStatement()
 
 ParserInfo SubroutineCall()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is identifier
 	if (t.tp != ID)
@@ -1155,38 +874,15 @@ ParserInfo SubroutineCall()
 		return pi;
 	}
 
-	char identifier[128];
-	strcpy(identifier, t.lx);
-
-	t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	// Check if next token is .
 	if (t.tp == SYMBOL && strcmp(t.lx, ".") == 0)
 	{
-		//If next token is . then the identifier is a class name
-		char className[128];
-		strcpy(className, identifier);
-		Scope* classScope = FindClass(className);
-
-		if (classScope == NULL)
-		{
-			// Create undecleared class
-			classScope = CreateClass(className, "NULL", "NULL");
-		}
-
 		// Skip "." token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
-
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
+		// Get next token
+		NEXT_TOKEN
 
 		// Check if next token is identifier
 		if (t.tp != ID)
@@ -1194,35 +890,9 @@ ParserInfo SubroutineCall()
 			Error(&pi, &t, idExpected, "identifier expected");
 			return pi;
 		}
-
-		// Check if subroutine is declared
-		Symbol* subroutineSymbol = FindGlobalSymbol(className, t.lx);
-
-		if (subroutineSymbol == NULL)
-		{
-			// Create undecleared subroutine
-			CreateSymbolAtScope(classScope, t.lx, "NULL", "NULL", 1);
-		}
-	}
-	else
-	{
-		// If next token is not . then the identifier is a subroutine name
-		Symbol* subroutineSymbol = FindSymbolAtCurrentScope(identifier);
-		Scope* classScope = FindParentClass();
-
-		if (classScope == NULL)
-		{
-			Error(&pi, &t, syntaxError, "Subroutine call outside class");
-		}		
-
-		// Create undecleared subroutine
-		CreateSymbolAtScope(classScope, identifier, "NULL", "NULL", 1);
 	}
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is (
 	if (t.tp != SYMBOL || strcmp(t.lx, "(") != 0)
@@ -1236,10 +906,7 @@ ParserInfo SubroutineCall()
 	if (pi.er != none)
 		return pi;
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is )
 	if (t.tp != SYMBOL || strcmp(t.lx, ")") != 0)
@@ -1253,13 +920,11 @@ ParserInfo SubroutineCall()
 
 ParserInfo ExpressionList()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	// Check if next token is ), if yes then there are no expressions
 	if (t.tp == SYMBOL && strcmp(t.lx, ")") == 0)
@@ -1270,29 +935,20 @@ ParserInfo ExpressionList()
 	if (pi.er != none)
 		return pi;
 	
-	t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	// Loop while next token is ,
 	while(t.tp == SYMBOL && strcmp(t.lx, ",") == 0)
 	{
 		// Skip "," token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		pi = Expression();
 
 		if (pi.er != none)
 			return pi;
 
-		t = PeekNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		PEEK_TOKEN
 	}
 
 	return pi;
@@ -1300,13 +956,11 @@ ParserInfo ExpressionList()
 
 ParserInfo ReturnStatement()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if return keyword is found
 	if(t.tp != RESWORD || strcmp(t.lx, "return") != 0)
@@ -1315,10 +969,7 @@ ParserInfo ReturnStatement()
 		return pi;
 	}
 
-	t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	//Cheack if next token is -, ~ or () and needs expression
 	if (t.tp == SYMBOL)
@@ -1353,16 +1004,11 @@ ParserInfo ReturnStatement()
 		}
 	}
 
-	t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if next token is semicolon
 	if (t.tp != SYMBOL || strcmp(t.lx, ";") != 0)
 	{
-		// Need to go back one line as error is on the previous line
-		t.ln--;
 		Error(&pi, &t, semicolonExpected, "; expected");
 		return pi;
 	}
@@ -1372,6 +1018,7 @@ ParserInfo ReturnStatement()
 
 ParserInfo Expression()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
@@ -1380,29 +1027,20 @@ ParserInfo Expression()
 	if (pi.er != none)
 		return pi;
 
-	Token t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	//loop while next token is | or &
 	while (t.tp == SYMBOL && (strcmp(t.lx, "|") == 0 || strcmp(t.lx, "&") == 0))
 	{
 		// Skip "|" or "&" token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		pi = RelationalExpression();
 
 		if (pi.er != none)
 			return pi;
 
-		t = PeekNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		PEEK_TOKEN
 	}
 
 	return pi;
@@ -1410,6 +1048,7 @@ ParserInfo Expression()
 
 ParserInfo RelationalExpression()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
@@ -1418,29 +1057,20 @@ ParserInfo RelationalExpression()
 	if (pi.er != none)
 		return pi;
 
-	Token t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	//loop while next token is <, >, =
 	while (t.tp == SYMBOL && (strcmp(t.lx, "<") == 0 || strcmp(t.lx, ">") == 0 || strcmp(t.lx, "=") == 0))
 	{
 		// Skip <, > or = token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		pi = ArithmeticExpression();
 
 		if (pi.er != none)
 			return pi;
 
-		t = PeekNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		PEEK_TOKEN
 	}
 
 	return pi;
@@ -1448,6 +1078,7 @@ ParserInfo RelationalExpression()
 
 ParserInfo ArithmeticExpression()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
@@ -1456,29 +1087,20 @@ ParserInfo ArithmeticExpression()
 	if (pi.er != none)
 		return pi;
 
-	Token t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	//loop while next token is + or -
 	while (t.tp == SYMBOL && (strcmp(t.lx, "+") == 0 || strcmp(t.lx, "-") == 0))
 	{
 		// Skip + or - token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		pi = Term();
 
 		if (pi.er != none)
 			return pi;
 
-		t = PeekNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		PEEK_TOKEN
 	}
 	
 	return pi;
@@ -1486,6 +1108,7 @@ ParserInfo ArithmeticExpression()
 
 ParserInfo Term()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
@@ -1494,29 +1117,20 @@ ParserInfo Term()
 	if (pi.er != none)
 		return pi;
 
-	Token t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	//loop while next token is * or /
 	while (t.tp == SYMBOL && (strcmp(t.lx, "*") == 0 || strcmp(t.lx, "/") == 0))
 	{
 		// Skip * or / token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		pi = Factor();
 
 		if (pi.er != none)
 			return pi;
 
-		t = PeekNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		PEEK_TOKEN
 	}
 
 	return pi;
@@ -1524,13 +1138,11 @@ ParserInfo Term()
 
 ParserInfo Factor()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	// next symbol should be - or ~ or empty string
 	if (t.tp == SYMBOL)
@@ -1538,10 +1150,7 @@ ParserInfo Factor()
 		if	(strcmp(t.lx, "-") == 0 || strcmp(t.lx, "~") == 0)
 		{
 			// Skip - or ~ token
-			t = GetNextTokenWithErrorCheck(&pi);
-
-			if (t.tp == ERR)
-				return pi;
+			NEXT_TOKEN
 		}
 	}
 
@@ -1555,22 +1164,17 @@ ParserInfo Factor()
 
 ParserInfo Operand()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	// if int constant
 	if (t.tp == INT)
 	{
 		// Skip int constant token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 	}
 	// if it's identifier
 	else if(t.tp == ID)
@@ -1584,20 +1188,14 @@ ParserInfo Operand()
 	else if (t.tp == SYMBOL && strcmp(t.lx, "(") == 0)
 	{
 		// Skip ( token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		pi = Expression();
 
 		if (pi.er != none)
 			return pi;
 
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		// if next token is not )
 		if (t.tp != SYMBOL || strcmp(t.lx, ")") != 0)
@@ -1610,36 +1208,19 @@ ParserInfo Operand()
 	else if (t.tp == STRING)
 	{
 		// Skip string literal token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 	}
-	//if it's true or false
-	else if (t.tp == RESWORD && (strcmp(t.lx, "true") == 0 || strcmp(t.lx, "false") == 0 || strcmp(t.lx, "null") == 0 ))
+	//if it's true, false or null
+	else if (t.tp == RESWORD && (strcmp(t.lx, "true") == 0 || strcmp(t.lx, "false") == 0 || strcmp(t.lx, "null") == 0))
 	{
-		// Skip true or false token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		// Skip true, false or null token
+		NEXT_TOKEN
 	}
 	// if it's null or this
 	else if(t.tp == RESWORD && strcmp(t.lx, "this") == 0)
 	{
 		// Skip null or this token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
-
-		Symbol* s = FindSymbolAtCurrentScope(t.lx);
-
-		if (s == NULL)
-		{
-			Error(&pi, &t, undecIdentifier, "Identifier not declared");
-			return pi;
-		}
+		NEXT_TOKEN
 	}
 	else
 	{
@@ -1652,13 +1233,11 @@ ParserInfo Operand()
 
 ParserInfo OperantIdentifier()
 {
+	Token t;
 	ParserInfo pi;
 	pi.er = none;
 
-	Token t = GetNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	NEXT_TOKEN
 
 	// Check if token is identifier
 	if (t.tp != ID)
@@ -1667,38 +1246,15 @@ ParserInfo OperantIdentifier()
 		return pi;
 	}
 
-	char identifier[128];
-	strcpy(identifier, t.lx);
-
-	t = PeekNextTokenWithErrorCheck(&pi);
-
-	if (t.tp == ERR)
-		return pi;
+	PEEK_TOKEN
 
 	//if nex token is "." then next token should be identifier
 	if (t.tp == SYMBOL && strcmp(t.lx, ".") == 0)
 	{
-		//If next token is . then the identifier is a class name
-		char className[128];
-		strcpy(className, identifier);
-		Scope* classScope = FindClass(className);
-
-		if (classScope == NULL)
-		{
-			// Create undecleared class
-			classScope = CreateClass(className, "NULL", "NULL");
-		}
-
 		// Skip . token
-		t = GetNextTokenWithErrorCheck(&pi);
+		NEXT_TOKEN
 
-		if (t.tp == ERR)
-			return pi;
-
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		// Check if token is identifier
 		if (t.tp != ID)
@@ -1707,60 +1263,22 @@ ParserInfo OperantIdentifier()
 			return pi;
 		}
 
-		// Check if subroutine is declared
-		Symbol* subroutineSymbol = FindGlobalSymbol(className, t.lx);
-
-		if (subroutineSymbol == NULL)
-		{
-			// Create undecleared subroutine
-			CreateSymbolAtScope(classScope, t.lx, "NULL", "NULL", 1);
-		}
-
 		// Peek to prepare for next iteration
-		t = PeekNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
-	}
-	else
-	{
-		// If next token is not . then the identifier is a subroutine name
-		Symbol* subroutineSymbol = FindSymbolAtCurrentScope(identifier);
-
-		// Check if subroutine is declared
-		if (subroutineSymbol == NULL)
-		{
-			Scope* classScope = FindParentClass();
-
-			if (classScope == NULL)
-			{
-				Error(&pi, &t, syntaxError, "Subroutine outside class");
-				return pi;
-			}
-
-			// Create undecleared subroutine
-			CreateSymbolAtScope(classScope, identifier, "NULL", "NULL", 1);
-		}
+		PEEK_TOKEN
 	}
 
 	//if next token is [
 	if (t.tp == SYMBOL && strcmp(t.lx, "[") == 0)
 	{
 		// Skip ( token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		pi = Expression();
 
 		if (pi.er != none)
 			return pi;
 
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		// Check if token is ]
 		if (t.tp != SYMBOL || strcmp(t.lx, "]") != 0)
@@ -1773,20 +1291,14 @@ ParserInfo OperantIdentifier()
 	else if(t.tp == SYMBOL && strcmp(t.lx, "(") == 0)
 	{
 		// Skip ( token
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		pi = ExpressionList();
 
 		if (pi.er != none)
 			return pi;
 
-		t = GetNextTokenWithErrorCheck(&pi);
-
-		if (t.tp == ERR)
-			return pi;
+		NEXT_TOKEN
 
 		// Check if token is )
 		if (t.tp != SYMBOL || strcmp(t.lx, ")") != 0)
@@ -1801,33 +1313,20 @@ ParserInfo OperantIdentifier()
 
 int StopParser ()
 {
-	ResetCurrentScope();
-	StopLexer();
 	return 1;
 }
 
 #ifndef TEST_PARSER
 int main ()
 {
-	InitSymbolTable();
-
-	InitParser("Pong/Ball.jack");
+	//Init parser
+	InitParser("Output.jack");
 
 	//Start parsing
 	Parse();
 
 	//Stop parser
 	StopParser();
-
-	InitParser("Memory.jack");
-
-	Parse();
-
-	StopParser();
-
-	PrintSymbolTable();
-
-	FreeSymbolTable();
 
 	return 1;
 }

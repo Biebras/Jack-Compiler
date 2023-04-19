@@ -10,6 +10,7 @@
                 "${workspaceFolder}/Compiler/lexer.c",
                 "${workspaceFolder}/Compiler/symbols.c",
                 "${workspaceFolder}/Compiler/parser.c",
+                "${workspaceFolder}/Compiler/compiler.c",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}"
             ],
