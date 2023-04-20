@@ -25,6 +25,7 @@ struct Scope
     Symbol* scopeSymbol;
     Symbol* symbols[200];
     int length;
+    int scopeLevel;
     Scope* parentScope;
 };
 
@@ -34,8 +35,8 @@ Symbol* CreateSymbolAtScope(Scope* scope, char* name, char* type, char* kind, in
 Symbol* CreateSymbolAtCurrentScope(char* name, char* type, char* kind, int createSubScope);
 Scope* FindClass(char* className);
 Scope* FindParentClass();
-Symbol* FindSymbolAtCurrentScope(char* name);
-Symbol* FindGlobalSymbol(char* className, char* name);
+Symbol* SearchSymbolFromCurrentScope(char* name);
+Symbol* SearchGlobalSymbol(char* className, char* name);
 int IsUndeclearedSymbol(Symbol* symbol);
 void ResetCurrentScope();
 void EnterScope(Symbol* symbol);

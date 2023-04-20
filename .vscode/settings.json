@@ -18,6 +18,7 @@
         "utility": "c",
         "symbols.h": "c",
         "unistd.h": "c",
-        "lexer.h": "c"
+        "lexer.h": "c",
+        "locale": "c"
     }
 }

@@ -20,6 +20,7 @@ Date Work Commenced: 2022-04-05
 Scope* CreateScope(Symbol* scopeSymbol, Scope* parentScope);
 void AddSymbol(Scope* scope, Symbol* symbol);
 Symbol* CreateSymbol(char* name, char* type, char* kind, Scope* parentScope, int createSubScope);
+void PrintScopeTabs(int scopeLevel);
 void PrintSymbol(Symbol* symbol);
 void PrintScope(Scope* scope);
 void FreeScope(Scope* scope);
@@ -29,7 +30,7 @@ Scope* currentScope = NULL;
 
 void InitSymbolTable()
 {
-    Symbol* programSymbol = CreateSymbol("Program", "NULL", "NULL", NULL, 1);
+    Symbol* programSymbol = CreateSymbol("Program", "Program", "Program", NULL, 1);
     programScope = CreateScope(programSymbol, NULL);
     currentScope = programScope;
 }
@@ -40,6 +41,12 @@ Scope* CreateScope(Symbol* scopeSymbol, Scope* parentScope)
     scope->scopeSymbol = scopeSymbol;
     scope->length = 0;
     scope->parentScope = parentScope;
+
+    if(parentScope == NULL)
+        scope->scopeLevel = 0;
+    else
+        scope->scopeLevel = parentScope->scopeLevel + 1;
+
     return scope;
 }
 
@@ -74,7 +81,7 @@ Scope* CreateClass(char* className, char* type, char* kind)
 
 Symbol* CreateSymbolAtScope(Scope* scope, char* name, char* type, char* kind, int createSubScope)
 {
-    Symbol* symbol = CreateSymbol(name, type, kind, currentScope, createSubScope);
+    Symbol* symbol = CreateSymbol(name, type, kind, scope, createSubScope);
     AddSymbol(scope, symbol);
     return symbol;
 }
@@ -107,10 +114,8 @@ Scope* FindParentClass()
 
     while (scope != NULL)
     {
-        if (scope->scopeSymbol != NULL && strcmp(scope->scopeSymbol->kind, "class") == 0)
-        {
+        if(scope->parentScope == programScope)
             return scope;
-        }
 
         scope = scope->parentScope;
     }
@@ -119,7 +124,7 @@ Scope* FindParentClass()
 }
 
 /// @brief Finds a symbol in the scope and all parent scopes.(Moves UP the tree) (BFS search)
-Symbol* FindSymbolUp(Scope* startScope, char* name)
+Symbol* SearchSymbolUp(Scope* startScope, char* name)
 {
     if (startScope == NULL)
         return NULL;
@@ -134,13 +139,13 @@ Symbol* FindSymbolUp(Scope* startScope, char* name)
         }
     }
 
-    Symbol* symbol = FindSymbolUp(startScope->parentScope, name);
+    Symbol* symbol = SearchSymbolUp(startScope->parentScope, name);
 
     return symbol;
 }
 
 /// @brief Finds a symbol in the scope and all child scopes.(Moves DOWN the tree) (BFS search)
-Symbol* FindSymbolDown(Scope* startScope, char* name)
+Symbol* SearchSymbolDown(Scope* startScope, char* name)
 {
     if (startScope == NULL)
         return NULL;
@@ -175,19 +180,19 @@ Symbol* FindSymbolDown(Scope* startScope, char* name)
     return NULL;
 }
 
-Symbol* FindSymbolAtCurrentScope(char* name)
+Symbol* SearchSymbolFromCurrentScope(char* name)
 {
-    return FindSymbolUp(currentScope, name);
+    return SearchSymbolUp(currentScope, name);
 }
 
-Symbol* FindGlobalSymbol(char* className, char* name)
+Symbol* SearchGlobalSymbol(char* className, char* name)
 {
     Scope* classScope = FindClass(className);
 
     if (classScope == NULL)
         return NULL;
 
-    Symbol* symbol = FindSymbolUp(classScope, name);
+    Symbol* symbol = SearchSymbolUp(classScope, name);
     
     return symbol;
 }
@@ -197,7 +202,7 @@ int IsUndeclearedSymbol(Symbol* symbol)
     if (symbol == NULL)
         return 1;
 
-    if (strcmp(symbol->type, "NULL") == 0 && strcmp(symbol->kind, "NULL") == 0)
+    if (strcmp(symbol->type, "NULL") == 0 || strcmp(symbol->kind, "NULL") == 0)
         return 1;
 
     return 0;
@@ -218,6 +223,14 @@ void ExitScope()
     currentScope = currentScope->parentScope;
 }
 
+void PrintScopeTabs(int scopeLevel)
+{
+    for (int i = 0; i < scopeLevel; i++)
+    {
+        printf("\t");
+    }
+}
+
 void PrintSymbol(Symbol* symbol)
 {
     if (symbol == NULL)
@@ -228,57 +241,35 @@ void PrintSymbol(Symbol* symbol)
 
     Scope* subScope = symbol->subScope;
     char* subScopeName = subScope == NULL ? "NULL" : subScope->scopeSymbol->name;
+
     printf("(N: %s, T: %s, K: %s, S: %s)\n", symbol->name, symbol->type, symbol->kind, subScopeName);
 }
 
 void PrintScope(Scope* scope)
 {
-    if (scope == NULL) 
+    if (scope == NULL)
         return;
-    
-    char* scopeName = scope->scopeSymbol == NULL ? "NULL" : scope->scopeSymbol->name;
 
-    if (scope->parentScope == programScope)
-    {
-         printf("\n=============================== %s CLASS SCOPE START ===============================\n", scopeName);
-    }
-    else
-    {
-        printf("== %s SCOPE START ==\n", scopeName);
-    }
-
-    if (scope->scopeSymbol != NULL)
-    {
-        printf("Scope symbol: ");
-        PrintSymbol(scope->scopeSymbol);
-    }
-
-    printf("Scope length: %d\n\n", scope->length);
+    PrintScopeTabs(scope->scopeLevel);
+    printf("{\n");
 
     for (int i = 0; i < scope->length; i++)
     {
         Symbol* symbol = scope->symbols[i];
         
+        PrintScopeTabs(scope->scopeLevel + 1);
         PrintSymbol(symbol);
 
-        if (symbol->subScope != NULL)
-        {
-            PrintScope(symbol->subScope);
-        }
+        PrintScope(symbol->subScope);
     }
 
-    if (scope->parentScope == programScope)
-    {
-         printf("=============================== %s CLASS SCOPE END ===============================\n\n", scopeName);
-    }
-    else
-    {
-        printf("== %s SCOPE END ==\n", scopeName);
-    }
+    PrintScopeTabs(scope->scopeLevel);
+    printf("}\n");
 }
 
 void PrintSymbolTable()
 {
+    PrintSymbol(programScope->scopeSymbol);
     PrintScope(programScope);
 }
 
