@@ -18,6 +18,7 @@ typedef struct
     char type[32];
     char kind[32];
     Scope* subScope;
+    ParserInfo pi;
 } Symbol;
 
 struct Scope
@@ -30,13 +31,15 @@ struct Scope
 };
 
 void InitSymbolTable();
-Scope* CreateClass(char* className, char* type, char* kind);
-Symbol* CreateSymbolAtScope(Scope* scope, char* name, char* type, char* kind, int createSubScope);
-Symbol* CreateSymbolAtCurrentScope(char* name, char* type, char* kind, int createSubScope);
+Scope* CreateClass(char* className, char* type, char* kind, ParserInfo pi);
+Symbol* CreateSymbolAtScope(Scope* scope, char* name, char* type, char* kind, ParserInfo pi, int createSubScope);
+Symbol* CreateSymbolAtCurrentScope(char* name, char* type, char* kind, ParserInfo pi, int createSubScope);
+Symbol* FindSymbolAtCurrentScope(char* name);
 Scope* FindClass(char* className);
 Scope* FindParentClass();
 Symbol* SearchSymbolFromCurrentScope(char* name);
 Symbol* SearchGlobalSymbol(char* className, char* name);
+Symbol* SearchForUndeclaredSymbol();
 int IsUndeclearedSymbol(Symbol* symbol);
 void ResetCurrentScope();
 void EnterScope(Symbol* symbol);

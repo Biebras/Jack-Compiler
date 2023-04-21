@@ -70,6 +70,7 @@ int InitCompiler ()
 ParserInfo compile (char* dir_name)
 {
 	ParserInfo p;
+	p.er = none;
 
 	int numFiles;
 	char** buildInFiles = getJackFiles(".", &numFiles);
@@ -79,8 +80,13 @@ ParserInfo compile (char* dir_name)
 	for (int i = 0; i < numFiles; i++)
 	{
 		InitParser(buildInFiles[i]);
-		Parse();
+		ParserInfo pi = Parse();
 		StopParser();
+
+		if (pi.er != none)
+		{
+			return pi;
+		}
 	}
 
 	char** directoryFiles = getJackFiles(dir_name, &numFiles);
@@ -91,22 +97,32 @@ ParserInfo compile (char* dir_name)
 		snprintf(filePath, sizeof(filePath), "%s/%s", dir_name, directoryFiles[i]);
 		
 		InitParser(filePath);
-		Parse();
+		ParserInfo pi = Parse();
 		StopParser();
+		
+		if (pi.er != none)
+		{
+			return pi;
+		}
 	}
 
-	PrintSymbolTable();
+	Symbol* undeclared = SearchForUndeclaredSymbol();
 
-	FreeSymbolTable();
+	if (undeclared != NULL)
+	{
+		Token token = undeclared->pi.tk;
+		char* errorMessage = "Undeclared symbol";
+		printf("Error: %s. Accured at line %d near %s token in file %s.\n", errorMessage, token.ln, token.lx, token.fl);
+		return undeclared->pi;
+	}
 
-	p.er = none;
 	return p;
 }
 
 int StopCompiler ()
 {
-
-
+	//PrintSymbolTable();
+	FreeSymbolTable();
 	return 1;
 }
 
@@ -116,7 +132,12 @@ int main ()
 {
 	InitCompiler ();
 	ParserInfo p = compile ("Pong");
-	//PrintError (p);
+
+	if (p.er != none)
+		printf("Compilation failed\n");
+	else
+		printf("Compilation successful\n");
+
 	StopCompiler ();
 	return 1;
 }

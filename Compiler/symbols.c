@@ -16,10 +16,12 @@ Date Work Commenced: 2022-04-05
 *************************************************************************/
 
 #include "symbols.h"
+#include "parser.h"
 
 Scope* CreateScope(Symbol* scopeSymbol, Scope* parentScope);
 void AddSymbol(Scope* scope, Symbol* symbol);
-Symbol* CreateSymbol(char* name, char* type, char* kind, Scope* parentScope, int createSubScope);
+Symbol* CreateSymbol(char* name, char* type, char* kind, Scope* parentScope, ParserInfo pi, int createSubScope);
+Symbol* FindSymbolAtScope(Scope* scope, char* name);
 void PrintScopeTabs(int scopeLevel);
 void PrintSymbol(Symbol* symbol);
 void PrintScope(Scope* scope);
@@ -30,7 +32,10 @@ Scope* currentScope = NULL;
 
 void InitSymbolTable()
 {
-    Symbol* programSymbol = CreateSymbol("Program", "Program", "Program", NULL, 1);
+    ParserInfo pi;
+    Token token;
+    pi.tk = token;
+    Symbol* programSymbol = CreateSymbol("Program", "Program", "Program", NULL, pi, 1);
     programScope = CreateScope(programSymbol, NULL);
     currentScope = programScope;
 }
@@ -56,13 +61,14 @@ void AddSymbol(Scope* scope, Symbol* symbol)
     scope->length++;
 }
 
-Symbol* CreateSymbol(char* name, char* type, char* kind, Scope* parentScope, int createSubScope)
+Symbol* CreateSymbol(char* name, char* type, char* kind, Scope* parentScope, ParserInfo pi, int createSubScope)
 {
     Symbol* symbol = (Symbol*)malloc(sizeof(Symbol));
     strcpy(symbol->name, name);
     strcpy(symbol->type, type);
     strcpy(symbol->kind, kind);
     symbol->subScope = NULL;
+    symbol->pi = pi;
 
     if (createSubScope == 1)
     {
@@ -72,23 +78,43 @@ Symbol* CreateSymbol(char* name, char* type, char* kind, Scope* parentScope, int
     return symbol;
 }
 
-Scope* CreateClass(char* className, char* type, char* kind)
+Scope* CreateClass(char* className, char* type, char* kind, ParserInfo pi)
 {
-    Symbol* classSymbol = CreateSymbol(className, type, kind, programScope, 1);
+    Symbol* classSymbol = CreateSymbol(className, type, kind, programScope, pi, 1);
     AddSymbol(programScope, classSymbol);
     return classSymbol->subScope;
 }
 
-Symbol* CreateSymbolAtScope(Scope* scope, char* name, char* type, char* kind, int createSubScope)
+Symbol* CreateSymbolAtScope(Scope* scope, char* name, char* type, char* kind, ParserInfo pi, int createSubScope)
 {
-    Symbol* symbol = CreateSymbol(name, type, kind, scope, createSubScope);
+    Symbol* symbol = CreateSymbol(name, type, kind, scope, pi, createSubScope);
     AddSymbol(scope, symbol);
     return symbol;
 }
 
-Symbol* CreateSymbolAtCurrentScope(char* name, char* type, char* kind, int createSubScope)
+Symbol* CreateSymbolAtCurrentScope(char* name, char* type, char* kind, ParserInfo pi, int createSubScope)
 {
-    return CreateSymbolAtScope(currentScope, name, type, kind, createSubScope);
+    return CreateSymbolAtScope(currentScope, name, type, kind, pi, createSubScope);
+}
+
+Symbol* FindSymbolAtScope(Scope* scope, char* name)
+{
+    for (int i = 0; i < scope->length; i++)
+    {
+        Symbol* symbol = scope->symbols[i];
+
+        if (strcmp(symbol->name, name) == 0)
+        {
+            return symbol;
+        }
+    }
+
+    return NULL;
+}
+
+Symbol* FindSymbolAtCurrentScope(char* name)
+{
+    return FindSymbolAtScope(currentScope, name);
 }
 
 Scope* FindClass(char* className)
@@ -145,16 +171,13 @@ Symbol* SearchSymbolUp(Scope* startScope, char* name)
 }
 
 /// @brief Finds a symbol in the scope and all child scopes.(Moves DOWN the tree) (BFS search)
-Symbol* SearchSymbolDown(Scope* startScope, char* name)
+Symbol* SearchForUndeclaredSymbol()
 {
-    if (startScope == NULL)
-        return NULL;
-
-    Scope* scopes[200];
+    Scope* scopes[1000];
     int head = 0;
     int tail = 0;
 
-    scopes[tail++] = startScope;
+    scopes[tail++] = programScope;
 
     while (head < tail) 
     {
@@ -164,12 +187,15 @@ Symbol* SearchSymbolDown(Scope* startScope, char* name)
         {
             Symbol* symbol = scope->symbols[i];
 
-            if (strcmp(symbol->name, name) == 0)
+            if (strcmp(symbol->type, "NULL") == 0 || strcmp(symbol->kind, "NULL") == 0)
+            {
+                symbol->pi.er = undecIdentifier;
                 return symbol;
+            }
 
             if (symbol->subScope != NULL) 
             {
-                if (tail >= 200)
+                if (tail >= 1000)
                     return NULL;
 
                 scopes[tail++] = symbol->subScope;
@@ -242,6 +268,12 @@ void PrintSymbol(Symbol* symbol)
     Scope* subScope = symbol->subScope;
     char* subScopeName = subScope == NULL ? "NULL" : subScope->scopeSymbol->name;
 
+    if (strcmp(symbol->type, "NULL") == 0 || strcmp(symbol->kind, "NULL") == 0)
+    {
+        printf("(N: %s, T: %s, K: %s, S: %s) <--- UNDECLARED\n", symbol->name, symbol->type, symbol->kind, subScopeName);
+        return;
+    }
+    
     printf("(N: %s, T: %s, K: %s, S: %s)\n", symbol->name, symbol->type, symbol->kind, subScopeName);
 }
 

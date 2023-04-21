@@ -10,7 +10,7 @@ void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char*
 void PrintError(char* errorMessage, ParserInfo* parserInfo);
 Token GetNextTokenWithErrorCheck(ParserInfo *pi);
 Token PeekNextTokenWithErrorCheck(ParserInfo *pi);
-Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, int createSubScope);
+Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, ParserInfo pi, int createSubScope);
 ParserInfo ClassDeclar();
 ParserInfo MemberDeclar();
 ParserInfo ClassVarDeclar();
@@ -84,11 +84,11 @@ Token PeekNextTokenWithErrorCheck(ParserInfo *pi)
 	return t;
 }
 
-Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, int createSubScope)
+Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, ParserInfo pi, int createSubScope)
 {
 	if (symbol == NULL)
 	{
-		symbol = CreateSymbolAtCurrentScope(name, type, kind, createSubScope);
+		symbol = CreateSymbolAtCurrentScope(name, type, kind, pi, createSubScope);
 		return symbol;
 	}
 	
@@ -96,6 +96,7 @@ Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, int cr
 	{
 		strcpy(symbol->type, type);
 		strcpy(symbol->kind, kind);
+		symbol->pi = pi;
 	}
 
 	return symbol;
@@ -146,7 +147,7 @@ ParserInfo ClassDeclar()
 
 	// Create a scope for this class
 	Symbol* classSymbol = SearchSymbolFromCurrentScope(t.lx);
-	classSymbol = DeclareSymbol(classSymbol, t.lx, t.lx, "class", 1);
+	classSymbol = DeclareSymbol(classSymbol, t.lx, t.lx, "class", pi, 1);
 
 	if(classSymbol == NULL)
 	{
@@ -269,7 +270,7 @@ ParserInfo ClassVarDeclar()
 	}
 
 	Symbol* symbol = SearchSymbolFromCurrentScope(t.lx);
-	symbol = DeclareSymbol(symbol, t.lx, type, kind, 0);
+	symbol = DeclareSymbol(symbol, t.lx, type, kind, pi, 0);
 
 	if(symbol == NULL)
 	{
@@ -293,7 +294,7 @@ ParserInfo ClassVarDeclar()
 
 		// Check if identifier is found
 		symbol = SearchSymbolFromCurrentScope(t.lx);
-		symbol = DeclareSymbol(symbol, t.lx, type, kind, 0);
+		symbol = DeclareSymbol(symbol, t.lx, type, kind, pi, 0);
 
 		if(symbol == NULL)
 		{
@@ -347,7 +348,7 @@ ParserInfo Type()
 		if (classScope == NULL)
 		{
 			//Create undeclared class
-			CreateClass(t.lx, t.lx, "NULL");
+			CreateClass(t.lx, t.lx, "NULL", pi);
 		}
 	}
 
@@ -409,7 +410,7 @@ ParserInfo SubroutineDeclar()
 	
 	// Find the symbol in the current scope
 	Symbol* symbol = SearchSymbolFromCurrentScope(t.lx);
-	symbol = DeclareSymbol(symbol, t.lx, type, "subroutine", 1);
+	symbol = DeclareSymbol(symbol, t.lx, type, "subroutine", pi, 1);
 
 	if(symbol == NULL)
 	{
@@ -462,7 +463,8 @@ ParserInfo ParamList()
 	// Find the parent class, for type
 	Scope* classScope = FindParentClass();
 	//Create this symbol for method
-	Symbol* symbol = CreateSymbolAtCurrentScope("this", classScope->scopeSymbol->name, "argument", 0);
+	char* name = classScope->scopeSymbol->name;
+	Symbol* symbol = CreateSymbolAtCurrentScope("this", name, "argument", pi, 0);
 
 	PEEK_TOKEN
 
@@ -489,7 +491,15 @@ ParserInfo ParamList()
 	}
 
 	// add symbol to LOCAL subroutine scope
-	CreateSymbolAtCurrentScope(t.lx, type, "argument", 0);
+	symbol = FindSymbolAtCurrentScope(t.lx);
+
+	if (symbol != NULL)
+	{
+		Error(&pi, &t, redecIdentifier, "parameter already exists");
+		return pi;
+	}
+
+	CreateSymbolAtCurrentScope(t.lx, type, "argument", pi, 0);
 
 	PEEK_TOKEN
 
@@ -516,7 +526,15 @@ ParserInfo ParamList()
 			return pi;
 		}
 
-		CreateSymbolAtCurrentScope(t.lx, type, "argument", 0);
+		symbol = FindSymbolAtCurrentScope(t.lx);
+
+		if (symbol != NULL)
+		{
+			Error(&pi, &t, redecIdentifier, "parameter already exists");
+			return pi;
+		}
+
+		CreateSymbolAtCurrentScope(t.lx, type, "argument", pi, 0);
 
 		PEEK_TOKEN
 
@@ -673,7 +691,13 @@ ParserInfo VarDeclarStatement()
 		return pi;
 	}
 
-	CreateSymbolAtCurrentScope(t.lx, type, "var", 0);
+	if (SearchSymbolFromCurrentScope(t.lx) != NULL)
+	{
+		Error(&pi, &t, redecIdentifier, "variable already exists");
+		return pi;
+	}
+
+	CreateSymbolAtCurrentScope(t.lx, type, "var", pi, 0);
 
 	PEEK_TOKEN
 
@@ -693,7 +717,13 @@ ParserInfo VarDeclarStatement()
 			return pi;
 		}
 
-		CreateSymbolAtCurrentScope(t.lx, type, "var", 0);
+		if (SearchSymbolFromCurrentScope(t.lx) != NULL)
+		{
+			Error(&pi, &t, redecIdentifier, "variable already exists");
+			return pi;
+		}
+
+		CreateSymbolAtCurrentScope(t.lx, type, "var", pi, 0);
 
 		PEEK_TOKEN
 	}
@@ -1022,7 +1052,7 @@ ParserInfo SubroutineCall()
 		if (symbol == NULL)
 		{
 			// Create undecleared class
-			classScope = CreateClass(name, name, "NULL");
+			classScope = CreateClass(name, name, "NULL", pi);
 		}
 		else
 		{
@@ -1048,12 +1078,10 @@ ParserInfo SubroutineCall()
 		}
 
 		// Check if subroutine is declared
-		Symbol* subroutineSymbol = SearchGlobalSymbol(classScope->scopeSymbol->name, t.lx);
-
-		if (subroutineSymbol == NULL)
+		if (SearchGlobalSymbol(classScope->scopeSymbol->name, t.lx) == NULL)
 		{
 			// Create undecleared subroutine
-			CreateSymbolAtScope(classScope, t.lx, "NULL", "NULL", 1);
+			CreateSymbolAtScope(classScope, t.lx, "NULL", "NULL", pi, 1);
 		}
 	}
 	else
@@ -1071,7 +1099,7 @@ ParserInfo SubroutineCall()
 			}		
 
 			// Create undecleared subroutine
-			CreateSymbolAtScope(classScope, identifier, "NULL", "NULL", 1);	
+			CreateSymbolAtScope(classScope, identifier, "NULL", "NULL", pi, 1);	
 		}	
 	}
 
@@ -1457,7 +1485,7 @@ ParserInfo OperantIdentifier()
 		if (symbol == NULL)
 		{
 			// Create undecleared class
-			classScope = CreateClass(name, name, "NULL");
+			classScope = CreateClass(name, name, "NULL", pi);
 		}
 		else
 		{
@@ -1488,7 +1516,7 @@ ParserInfo OperantIdentifier()
 		if (subroutineSymbol == NULL)
 		{
 			// Create undecleared subroutine
-			CreateSymbolAtScope(classScope, t.lx, "NULL", "NULL", 1);
+			CreateSymbolAtScope(classScope, t.lx, "NULL", "NULL", pi, 1);
 		}
 
 		// Peek to prepare for next iteration
@@ -1511,7 +1539,7 @@ ParserInfo OperantIdentifier()
 			}
 
 			// Create undecleared subroutine
-			CreateSymbolAtScope(classScope, identifier, "NULL", "NULL", 1);
+			CreateSymbolAtScope(classScope, identifier, "NULL", "NULL", pi, 1);
 		}
 	}
 
