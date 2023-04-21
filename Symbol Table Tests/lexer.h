@@ -3,7 +3,7 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-//#define TEST		// uncomment this line to run the self-grader
+#define TEST		// uncomment this line to run the self-grader
 
 // the TokenType enumerated data type represents all possible token types in a JACK program, ERR is used to indicate a lexical error
 typedef enum {RESWORD, ID , INT , SYMBOL, STRING, EOFile, ERR} TokenType; 

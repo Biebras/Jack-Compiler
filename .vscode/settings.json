@@ -19,6 +19,7 @@
         "symbols.h": "c",
         "unistd.h": "c",
         "lexer.h": "c",
-        "locale": "c"
+        "locale": "c",
+        "parser.h": "c"
     }
 }

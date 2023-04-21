@@ -121,7 +121,7 @@ ParserInfo compile (char* dir_name)
 
 int StopCompiler ()
 {
-	PrintSymbolTable();
+	//PrintSymbolTable();
 	FreeSymbolTable();
 	return 1;
 }
@@ -131,7 +131,7 @@ int StopCompiler ()
 int main ()
 {
 	InitCompiler ();
-	ParserInfo p = compile ("REDECLAR_VAR");
+	ParserInfo p = compile ("Pong");
 
 	if (p.er != none)
 		printf("Compilation failed\n");
