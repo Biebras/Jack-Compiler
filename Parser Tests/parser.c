@@ -6,7 +6,7 @@
 #include "parser.h"
 
 void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char* errorMessage);
-void PrintErrorr(char* errorMessage, ParserInfo* parserInfo);
+void PrintError(char* errorMessage, ParserInfo* parserInfo);
 Token GetNextTokenWithErrorCheck(ParserInfo *pi);
 Token PeekNextTokenWithErrorCheck(ParserInfo *pi);
 ParserInfo ClassDeclar();
@@ -38,7 +38,7 @@ void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char*
 {
 	parserInfo->er = syntaxError;
 	parserInfo->tk = *token;
-	PrintErrorr(errorMessage, parserInfo);
+	PrintError(errorMessage, parserInfo);
 }
 
 void TokenError(ParserInfo* parserInfo, Token* token)
@@ -48,7 +48,7 @@ void TokenError(ParserInfo* parserInfo, Token* token)
 	printf("%s at line %d in file %s.", token->lx, token->ln, token->fl);
 }
 
-void PrintErrorr(char* errorMessage, ParserInfo* parserInfo)
+void PrintError(char* errorMessage, ParserInfo* parserInfo)
 {
 	Token token = parserInfo->tk;
 	printf("Error: %s at line %d in file %s. Error at %s token.\n", errorMessage, token.ln, token.fl, token.lx);

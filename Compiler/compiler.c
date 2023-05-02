@@ -131,7 +131,7 @@ int StopCompiler ()
 int main ()
 {
 	InitCompiler ();
-	ParserInfo p = compile ("REDECLAR_VAR");
+	ParserInfo p = compile ("StringTest");
 
 	if (p.er != none)
 		printf("Compilation failed\n");
