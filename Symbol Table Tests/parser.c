@@ -416,7 +416,7 @@ ParserInfo SubroutineDeclar()
 	if(symbol == NULL)
 	{
 		char errorMsg[128];
-		sprintf(errorMsg, sizeof(errorMsg), "subroutine (%s) already exists", t.lx);
+		snprintf(errorMsg, sizeof(errorMsg), "subroutine (%s) already exists", t.lx);
 		Error(&pi, &t, redecIdentifier, errorMsg);
 		return pi;
 	}
@@ -769,7 +769,7 @@ ParserInfo LetStatement()
 	if(SearchSymbolFromCurrentScope(t.lx) == NULL)
 	{
 		char errorMsg[128];
-		sprintf(errorMsg, sizeof(errorMsg), "variable %s not declared", t.lx);
+		snprintf(errorMsg, sizeof(errorMsg), "variable %s not declared", t.lx);
 		Error(&pi, &t, undecIdentifier, errorMsg);
 		return pi;
 	}
