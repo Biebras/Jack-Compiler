@@ -416,7 +416,7 @@ ParserInfo SubroutineDeclar()
 	if(symbol == NULL)
 	{
 		char errorMsg[128];
-		sprintf(errorMsg, "subroutine (%s) already exists", t.lx);
+		sprintf(errorMsg, sizeof(errorMsg), "subroutine (%s) already exists", t.lx);
 		Error(&pi, &t, redecIdentifier, errorMsg);
 		return pi;
 	}
@@ -769,7 +769,7 @@ ParserInfo LetStatement()
 	if(SearchSymbolFromCurrentScope(t.lx) == NULL)
 	{
 		char errorMsg[128];
-		sprintf(errorMsg, "variable %s not declared", t.lx);
+		sprintf(errorMsg, sizeof(errorMsg), "variable %s not declared", t.lx);
 		Error(&pi, &t, undecIdentifier, errorMsg);
 		return pi;
 	}
@@ -1593,25 +1593,3 @@ int StopParser ()
 	ResetCurrentScope();
 	return 1;
 }
-
-#ifndef TEST_PARSER
-int main ()
-{
-	InitSymbolTable();
-
-	//Init parser
-	InitParser("Pong/Main.jack");
-
-	//Start parsing
-	Parse();
-
-	//Stop parser
-	StopParser();
-
-	PrintSymbolTable();
-
-	FreeSymbolTable();
-
-	return 1;
-}
-#endif

@@ -20,6 +20,7 @@
         "unistd.h": "c",
         "lexer.h": "c",
         "locale": "c",
-        "parser.h": "c"
+        "parser.h": "c",
+        "dirent.h": "c"
     }
 }

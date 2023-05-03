@@ -132,20 +132,3 @@ int StopCompiler ()
 	FreeSymbolTable();
 	return 1;
 }
-
-
-#ifndef TEST_COMPILER
-int main ()
-{
-	InitCompiler ();
-	ParserInfo p = compile ("Pong");
-
-	if (p.er != none)
-		printf("Compilation failed\n");
-	else
-		printf("Compilation successful\n");
-
-	StopCompiler ();
-	return 1;
-}
-#endif
