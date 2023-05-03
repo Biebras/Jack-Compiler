@@ -17,6 +17,7 @@ Date Work Commenced:
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <sys/stat.h>
 
 #include "lexer.h"
 #include "parser.h"
@@ -32,7 +33,7 @@ char** getJackFiles(char* dirPath, int* numFiles)
     DIR* dir = opendir(dirPath);
 
     if (dir == NULL) 
-	{
+    {
         printf("Could not open directory %s\n", dirPath);
         return NULL;
     }
@@ -42,17 +43,23 @@ char** getJackFiles(char* dirPath, int* numFiles)
     char** files = NULL;
 
     while ((entry = readdir(dir)) != NULL) 
-	{
-        if (entry->d_type == DT_REG) 
-		{
-            char* ext = strrchr(entry->d_name, '.');
+    {
+        char path[1024];
+        struct stat info;
+        snprintf(path, sizeof(path), "%s/%s", dirPath, entry->d_name);
+        if (!stat(path, &info))
+        {
+            if (S_ISREG(info.st_mode))
+            {
+                char* ext = strrchr(entry->d_name, '.');
 
-            if (ext && strcmp(ext, ".jack") == 0) 
-			{
-                files = realloc(files, sizeof(char*) * (count + 1));
-                files[count] = malloc(strlen(entry->d_name) + 1);
-                strcpy(files[count], entry->d_name);
-                count++;
+                if (ext && strcmp(ext, ".jack") == 0) 
+                {
+                    files = realloc(files, sizeof(char*) * (count + 1));
+                    files[count] = malloc(strlen(entry->d_name) + 1);
+                    strcpy(files[count], entry->d_name);
+                    count++;
+                }
             }
         }
     }
@@ -121,7 +128,7 @@ ParserInfo compile (char* dir_name)
 
 int StopCompiler ()
 {
-	PrintSymbolTable();
+	//PrintSymbolTable();
 	FreeSymbolTable();
 	return 1;
 }
@@ -131,7 +138,7 @@ int StopCompiler ()
 int main ()
 {
 	InitCompiler ();
-	ParserInfo p = compile ("StringTest");
+	ParserInfo p = compile ("Pong");
 
 	if (p.er != none)
 		printf("Compilation failed\n");
