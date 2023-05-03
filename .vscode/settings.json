@@ -21,6 +21,7 @@
         "lexer.h": "c",
         "locale": "c",
         "parser.h": "c",
-        "dirent.h": "c"
+        "dirent.h": "c",
+        "string.h": "c"
     }
 }

@@ -415,9 +415,9 @@ ParserInfo SubroutineDeclar()
 
 	if(symbol == NULL)
 	{
-		char errorMsg[128];
-		snprintf(errorMsg, sizeof(errorMsg), "subroutine (%s) already exists", t.lx);
-		Error(&pi, &t, redecIdentifier, errorMsg);
+		//char errorMsg[128];
+		//snprintf(errorMsg, sizeof(errorMsg), "subroutine (%.*s) already exists", (int)(sizeof(errorMsg) - 22), t.lx);
+		Error(&pi, &t, redecIdentifier, "subroutine already exists");
 		return pi;
 	}
 
@@ -768,9 +768,9 @@ ParserInfo LetStatement()
 	// Check if symbol is in symbol table
 	if(SearchSymbolFromCurrentScope(t.lx) == NULL)
 	{
-		char errorMsg[128];
-		snprintf(errorMsg, sizeof(errorMsg), "variable %s not declared", t.lx);
-		Error(&pi, &t, undecIdentifier, errorMsg);
+		//char errorMsg[128];
+		//snprintf(errorMsg, sizeof(errorMsg), "variable %.*s not declared", (int)(sizeof(errorMsg) - 21), t.lx);
+		Error(&pi, &t, undecIdentifier, "variable not declared");
 		return pi;
 	}
 

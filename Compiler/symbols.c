@@ -206,6 +206,18 @@ Symbol* SearchForUndeclaredSymbol()
     return NULL;
 }
 
+int BadString(char* string)
+{
+    //Cheack if contains \0 
+    for (int i = 0; i < strlen(string); i++)
+    {
+        if (string[i] == '\0')
+            return 1;
+    }
+
+    return 0;
+}
+
 Symbol* SearchSymbolFromCurrentScope(char* name)
 {
     return SearchSymbolUp(currentScope, name);

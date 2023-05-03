@@ -129,16 +129,16 @@ ParserInfo compile (char* dir_name)
 int StopCompiler ()
 {
 	//PrintSymbolTable();
+	printf("Compiler stopped.\n");
 	FreeSymbolTable();
 	return 1;
 }
-
 
 #ifndef TEST_COMPILER
 int main ()
 {
 	InitCompiler ();
-	ParserInfo p = compile ("Pong");
+	ParserInfo p = compile ("UNDECLAR_CLASS");
 
 	if (p.er != none)
 		printf("Compilation failed\n");

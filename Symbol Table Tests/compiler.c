@@ -129,6 +129,8 @@ ParserInfo compile (char* dir_name)
 int StopCompiler ()
 {
 	//PrintSymbolTable();
+	printf("Compiler stopped.\n");
 	FreeSymbolTable();
 	return 1;
 }
+
