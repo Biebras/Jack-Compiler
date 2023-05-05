@@ -366,27 +366,3 @@ char* GetTokenName (TokenType tp)
             return "ERR";
     }
 }
-
-// do not remove the next line
-#ifndef TEST
-int main ()
-{
-    //get current directory
-	int result = InitLexer("Output.jack");
-
-    if (result == 0)
-        return 0;
-
-    Token token = GetNextToken();
-    printf("< %s, %d, %s, %s >\n", token.fl, token.ln, token.lx, GetTokenName(token.tp));
-
-    while (token.tp != EOFile && token.tp != ERR)
-    {
-        token = GetNextToken();
-        printf("< %s, %d, %s, %s >\n", token.fl, token.ln, token.lx, GetTokenName(token.tp));
-    }
-
-	return 1;
-}
-// do not remove the next line
-#endif

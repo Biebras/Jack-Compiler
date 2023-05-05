@@ -20,7 +20,7 @@ typedef struct {
   char lx[128];		// the lexeme (string) of the token, e.g. "34". If the lexer encounters an error this string is set to an error message
   int ec;			// If the lexer encounters an error this value is set to the proper error code (see the above enumerated list of errors)
   int ln;			// the line number of the source file where the token exists
-  char fl[32];		// the file (name) in which this token exists
+  char fl[64];		// the file (name) in which this token exists
 } Token;
 
 

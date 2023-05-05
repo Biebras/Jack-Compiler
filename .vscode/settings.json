@@ -22,6 +22,8 @@
         "locale": "c",
         "parser.h": "c",
         "dirent.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "stdio.h": "c",
+        "stdarg.h": "c"
     }
 }

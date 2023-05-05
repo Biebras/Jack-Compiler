@@ -24,6 +24,11 @@ Date Work Commenced:
 #include "symbols.h"
 #include "compiler.h"
 
+void Test()
+{
+	printf("Compiler test\n");
+}
+
 /// @brief Returns all files with .jack extension in the given directory. (From bing chat)
 /// @param dirPath Path to the directory.
 /// @param numFiles Number of files found.
@@ -71,18 +76,20 @@ char** getJackFiles(char* dirPath, int* numFiles)
 
 int InitCompiler ()
 {
+	InitSymbolTable();
+
 	return 1;
 }
 
 ParserInfo compile (char* dir_name)
 {
+	printf("Starting compiler...\n");
+
 	ParserInfo p;
 	p.er = none;
 
 	int numFiles;
 	char** buildInFiles = getJackFiles(".", &numFiles);
-
-	InitSymbolTable();
 
 	for (int i = 0; i < numFiles; i++)
 	{
@@ -128,7 +135,7 @@ ParserInfo compile (char* dir_name)
 
 int StopCompiler ()
 {
-	//PrintSymbolTable();
+	PrintSymbolTable();
 	printf("Compiler stopped.\n");
 	FreeSymbolTable();
 	return 1;
@@ -138,7 +145,7 @@ int StopCompiler ()
 int main ()
 {
 	InitCompiler ();
-	ParserInfo p = compile ("UNDECLAR_CLASS");
+	ParserInfo p = compile ("Pong");
 
 	if (p.er != none)
 		printf("Compilation failed\n");

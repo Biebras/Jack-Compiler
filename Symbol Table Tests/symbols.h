@@ -17,8 +17,10 @@ typedef struct
     char name[128];
     char type[32];
     char kind[32];
+    Scope* parentScope;
     Scope* subScope;
     ParserInfo pi;
+    int adress;
 } Symbol;
 
 struct Scope
@@ -31,6 +33,8 @@ struct Scope
 };
 
 void InitSymbolTable();
+int GetSymbolAddress(Symbol* symbol);
+Scope* GetCurrentScope();
 Scope* CreateClass(char* className, char* type, char* kind, ParserInfo pi);
 Symbol* CreateSymbolAtScope(Scope* scope, char* name, char* type, char* kind, ParserInfo pi, int createSubScope);
 Symbol* CreateSymbolAtCurrentScope(char* name, char* type, char* kind, ParserInfo pi, int createSubScope);

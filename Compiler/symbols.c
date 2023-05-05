@@ -40,6 +40,11 @@ void InitSymbolTable()
     currentScope = programScope;
 }
 
+Scope* GetCurrentScope()
+{
+    return currentScope;
+}
+
 Scope* CreateScope(Symbol* scopeSymbol, Scope* parentScope)
 {
     Scope* scope = (Scope*)malloc(sizeof(Scope));
@@ -55,8 +60,33 @@ Scope* CreateScope(Symbol* scopeSymbol, Scope* parentScope)
     return scope;
 }
 
+int GetSymbolAddress(Symbol* symbol)
+{
+    int count = 0;
+    Scope* scope = symbol->parentScope;
+
+    for (int i = 0; i < scope->length; i++)
+    {
+        Symbol* s = scope->symbols[i];
+
+        if (s == symbol)
+            continue;
+
+        if (strcmp(scope->symbols[i]->kind, symbol->kind) == 0)
+            count++;
+    }
+
+    return count;
+}
+
 void AddSymbol(Scope* scope, Symbol* symbol)
 {
+    // Assign address
+    symbol->parentScope = scope;
+    int address = GetSymbolAddress(symbol);
+    symbol->adress = address;
+
+    // Add symbol to scope
     scope->symbols[scope->length] = symbol;
     scope->length++;
 }
@@ -206,18 +236,6 @@ Symbol* SearchForUndeclaredSymbol()
     return NULL;
 }
 
-int BadString(char* string)
-{
-    //Cheack if contains \0 
-    for (int i = 0; i < strlen(string); i++)
-    {
-        if (string[i] == '\0')
-            return 1;
-    }
-
-    return 0;
-}
-
 Symbol* SearchSymbolFromCurrentScope(char* name)
 {
     return SearchSymbolUp(currentScope, name);
@@ -282,11 +300,11 @@ void PrintSymbol(Symbol* symbol)
 
     if (strcmp(symbol->type, "NULL") == 0 || strcmp(symbol->kind, "NULL") == 0)
     {
-        printf("(N: %s, T: %s, K: %s, S: %s) <--- UNDECLARED\n", symbol->name, symbol->type, symbol->kind, subScopeName);
+        printf("(N: %s, T: %s, K: %s, A: %d, S: %s) <--- UNDECLARED\n", symbol->name, symbol->type, symbol->kind, symbol->adress, subScopeName);
         return;
     }
     
-    printf("(N: %s, T: %s, K: %s, S: %s)\n", symbol->name, symbol->type, symbol->kind, subScopeName);
+    printf("(N: %s, T: %s, K: %s, A: %d, S: %s)\n", symbol->name, symbol->type, symbol->kind, symbol->adress, subScopeName);
 }
 
 void PrintScope(Scope* scope)

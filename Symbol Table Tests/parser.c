@@ -1,10 +1,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "lexer.h"
 #include "parser.h"
 #include "symbols.h"
+#include "compiler.h"
 
 void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char* errorMessage);
 static void PrintError(char* errorMessage, ParserInfo* parserInfo);
@@ -37,6 +39,19 @@ ParserInfo OperantIdentifier();
 
 #define NEXT_TOKEN t = GetNextTokenWithErrorCheck(&pi); if(t.tp == ERR){TokenError(&pi, &t); return pi;}
 #define PEEK_TOKEN t = PeekNextTokenWithErrorCheck(&pi); if(t.tp == ERR){TokenError(&pi, &t); return pi;}
+
+// This code was taken from bing chat
+void safe_snprintf(char *buffer, size_t bufferSize, const char *format, ...) 
+{
+    va_list args;
+    va_start(args, format);
+    int length = vsnprintf(buffer, bufferSize, format, args);
+    va_end(args);
+
+    if (length >= bufferSize) {
+        buffer[bufferSize - 1] = '\0';
+    }
+}
 
 // you can declare prototypes of parser functions below
 void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char* errorMessage)
@@ -89,6 +104,7 @@ Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, Parser
 	if (symbol == NULL)
 	{
 		symbol = CreateSymbolAtCurrentScope(name, type, kind, pi, createSubScope);
+
 		return symbol;
 	}
 	
@@ -96,6 +112,7 @@ Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, Parser
 	{
 		strcpy(symbol->type, type);
 		strcpy(symbol->kind, kind);
+		symbol->adress = GetSymbolAddress(symbol);
 		symbol->pi = pi;
 		return symbol;
 	}
@@ -376,6 +393,9 @@ ParserInfo SubroutineDeclar()
 		return pi;
 	}
 
+	char kind[128];
+	strcpy(kind, t.lx);
+
 	PEEK_TOKEN
 
 	// Check if void or type is found
@@ -411,13 +431,14 @@ ParserInfo SubroutineDeclar()
 	
 	// Find the symbol in the current scope
 	Symbol* symbol = SearchSymbolFromCurrentScope(t.lx);
-	symbol = DeclareSymbol(symbol, t.lx, type, "subroutine", pi, 1);
+	symbol = DeclareSymbol(symbol, t.lx, type, kind, pi, 1);
 
 	if(symbol == NULL)
 	{
-		//char errorMsg[128];
-		//snprintf(errorMsg, sizeof(errorMsg), "subroutine (%.*s) already exists", (int)(sizeof(errorMsg) - 22), t.lx);
-		Error(&pi, &t, redecIdentifier, "subroutine already exists");
+		char errorMsg[128];
+		safe_snprintf(errorMsg, sizeof(errorMsg), "subroutine (%s) already exists", t.lx);
+
+		Error(&pi, &t, redecIdentifier, errorMsg);
 		return pi;
 	}
 
@@ -465,7 +486,14 @@ ParserInfo ParamList()
 	Scope* classScope = FindParentClass();
 	//Create this symbol for method
 	char* name = classScope->scopeSymbol->name;
-	Symbol* symbol = CreateSymbolAtCurrentScope("this", name, "argument", pi, 0);
+	Scope* currentScope = GetCurrentScope();
+	Symbol* symbol;
+
+	// If current scope is not a function, then create "this" symbol
+	if (strcmp(currentScope->scopeSymbol->kind, "function") != 0)
+	{
+		symbol = CreateSymbolAtCurrentScope("this", name, "argument", pi, 0);
+	}
 
 	PEEK_TOKEN
 
@@ -768,9 +796,10 @@ ParserInfo LetStatement()
 	// Check if symbol is in symbol table
 	if(SearchSymbolFromCurrentScope(t.lx) == NULL)
 	{
-		//char errorMsg[128];
-		//snprintf(errorMsg, sizeof(errorMsg), "variable %.*s not declared", (int)(sizeof(errorMsg) - 21), t.lx);
-		Error(&pi, &t, undecIdentifier, "variable not declared");
+		char errorMsg[128];
+		safe_snprintf(errorMsg, sizeof(errorMsg), "variable (%s) not declared", t.lx);
+
+		Error(&pi, &t, undecIdentifier, errorMsg);
 		return pi;
 	}
 

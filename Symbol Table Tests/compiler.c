@@ -71,18 +71,20 @@ char** getJackFiles(char* dirPath, int* numFiles)
 
 int InitCompiler ()
 {
+	InitSymbolTable();
+
 	return 1;
 }
 
 ParserInfo compile (char* dir_name)
 {
+	printf("Starting compiler...\n");
+
 	ParserInfo p;
 	p.er = none;
 
 	int numFiles;
 	char** buildInFiles = getJackFiles(".", &numFiles);
-
-	InitSymbolTable();
 
 	for (int i = 0; i < numFiles; i++)
 	{
@@ -133,4 +135,3 @@ int StopCompiler ()
 	FreeSymbolTable();
 	return 1;
 }
-
