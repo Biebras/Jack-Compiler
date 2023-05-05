@@ -24,6 +24,8 @@
         "dirent.h": "c",
         "string.h": "c",
         "stdio.h": "c",
-        "stdarg.h": "c"
+        "stdarg.h": "c",
+        "codegeneration.h": "c",
+        "__locale": "c"
     }
 }

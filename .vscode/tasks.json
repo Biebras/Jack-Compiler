@@ -11,6 +11,7 @@
                 "${workspaceFolder}/Compiler/symbols.c",
                 "${workspaceFolder}/Compiler/parser.c",
                 "${workspaceFolder}/Compiler/compiler.c",
+                "${workspaceFolder}/Compiler/codegeneration.c",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}"
             ],

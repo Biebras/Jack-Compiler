@@ -34,6 +34,7 @@ struct Scope
 
 void InitSymbolTable();
 int GetSymbolAddress(Symbol* symbol);
+int GetArgumentCount(Symbol* symbol);
 Scope* GetCurrentScope();
 Scope* CreateClass(char* className, char* type, char* kind, ParserInfo pi);
 Symbol* CreateSymbolAtScope(Scope* scope, char* name, char* type, char* kind, ParserInfo pi, int createSubScope);

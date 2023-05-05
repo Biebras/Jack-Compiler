@@ -2,11 +2,13 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #include "lexer.h"
 #include "parser.h"
 #include "symbols.h"
 #include "compiler.h"
+#include "codegeneration.h"
 
 void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char* errorMessage);
 static void PrintError(char* errorMessage, ParserInfo* parserInfo);
@@ -39,6 +41,8 @@ ParserInfo OperantIdentifier();
 
 #define NEXT_TOKEN t = GetNextTokenWithErrorCheck(&pi); if(t.tp == ERR){TokenError(&pi, &t); return pi;}
 #define PEEK_TOKEN t = PeekNextTokenWithErrorCheck(&pi); if(t.tp == ERR){TokenError(&pi, &t); return pi;}
+
+extern bool secondPass;
 
 // This code was taken from bing chat
 void safe_snprintf(char *buffer, size_t bufferSize, const char *format, ...) 
@@ -116,6 +120,10 @@ Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, Parser
 		symbol->pi = pi;
 		return symbol;
 	}
+
+	// Return symbol on second pass to not confuse with undeclared symbol
+	if(secondPass == true)
+		return symbol;
 
 	return NULL;
 }
@@ -441,6 +449,9 @@ ParserInfo SubroutineDeclar()
 		Error(&pi, &t, redecIdentifier, errorMsg);
 		return pi;
 	}
+
+	if(secondPass == true)
+		EmitFunction(symbol);
 
 	NEXT_TOKEN
 
@@ -1044,6 +1055,9 @@ ParserInfo DoStatement()
 		return pi;
 	}
 
+	if (secondPass == true)
+		EmitPopTemp(0);
+	
 	return pi;
 }
 
@@ -1067,6 +1081,8 @@ ParserInfo SubroutineCall()
 	strcpy(identifier, t.lx);
 
 	PEEK_TOKEN
+
+	Symbol* subroutineSymbol = NULL;
 
 	// Check if next token is .
 	if (t.tp == SYMBOL && strcmp(t.lx, ".") == 0)
@@ -1107,8 +1123,10 @@ ParserInfo SubroutineCall()
 			return pi;
 		}
 
+		subroutineSymbol = SearchGlobalSymbol(classScope->scopeSymbol->name, t.lx);
+
 		// Check if subroutine is declared
-		if (SearchGlobalSymbol(classScope->scopeSymbol->name, t.lx) == NULL)
+		if (subroutineSymbol == NULL)
 		{
 			// Create undecleared subroutine
 			CreateSymbolAtScope(classScope, t.lx, "NULL", "NULL", pi, 1);
@@ -1117,7 +1135,7 @@ ParserInfo SubroutineCall()
 	else
 	{
 		// If next token is not . then the identifier is a subroutine name
-		Symbol* subroutineSymbol = SearchSymbolFromCurrentScope(identifier);
+		subroutineSymbol = SearchSymbolFromCurrentScope(identifier);
 
 		if(subroutineSymbol == NULL)
 		{
@@ -1155,6 +1173,9 @@ ParserInfo SubroutineCall()
 		Error(&pi, &t, closeBraceExpected, ") expected");
 		return pi;
 	}
+
+	if(secondPass == true)
+		EmitCall1(subroutineSymbol);
 
 	return pi;
 }
@@ -1212,37 +1233,17 @@ ParserInfo ReturnStatement()
 
 	PEEK_TOKEN
 
-	//Cheack if next token is -, ~ or () and needs expression
-	if (t.tp == SYMBOL)
-	{
-		if (strcmp(t.lx, "-") == 0 || strcmp(t.lx, "~") == 0 || strcmp(t.lx, "(") == 0)
-		{
-			pi = Expression();
-
-			if (pi.er != none)
-				return pi;
-		}
-	}
-
-	// Check if next token is int, id or string and needs expression
-	if (t.tp == INT || t.tp == ID || t.tp == STRING)
+	if (strcmp(t.lx, ";") != 0)
 	{
 		pi = Expression();
 
 		if (pi.er != none)
 			return pi;
 	}
-
-	// Check if next token is true, false, null or this and needs expression
-	if (t.tp == RESWORD)
+	else
 	{
-		if (strcmp(t.lx, "true") == 0 || strcmp(t.lx, "false") == 0 || strcmp(t.lx, "null") == 0 || strcmp(t.lx, "this") == 0)
-		{
-			pi = Expression();
-
-			if (pi.er != none)
-				return pi;
-		}
+		if (secondPass == true)
+			EmitReturn(NULL);
 	}
 
 	NEXT_TOKEN
@@ -1448,6 +1449,9 @@ ParserInfo Operand()
 	// if it's string literal
 	else if (t.tp == STRING)
 	{
+		if(secondPass)
+			EmitString(t.lx);
+
 		// Skip string literal token
 		NEXT_TOKEN
 	}

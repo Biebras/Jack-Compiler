@@ -79,6 +79,22 @@ int GetSymbolAddress(Symbol* symbol)
     return count;
 }
 
+int GetArgumentCount(Symbol* symbol)
+{
+    int count = 0;
+    Scope* scope = symbol->subScope;
+
+    for (int i = 0; i < scope->length; i++)
+    {
+        Symbol* s = scope->symbols[i];
+
+        if (strcmp(scope->symbols[i]->kind, "argument") == 0)
+            count++;
+    }
+
+    return count;
+}
+
 void AddSymbol(Scope* scope, Symbol* symbol)
 {
     // Assign address

@@ -1212,37 +1212,12 @@ ParserInfo ReturnStatement()
 
 	PEEK_TOKEN
 
-	//Cheack if next token is -, ~ or () and needs expression
-	if (t.tp == SYMBOL)
-	{
-		if (strcmp(t.lx, "-") == 0 || strcmp(t.lx, "~") == 0 || strcmp(t.lx, "(") == 0)
-		{
-			pi = Expression();
-
-			if (pi.er != none)
-				return pi;
-		}
-	}
-
-	// Check if next token is int, id or string and needs expression
-	if (t.tp == INT || t.tp == ID || t.tp == STRING)
+	if (strcmp(t.lx, ";") != 0)
 	{
 		pi = Expression();
 
 		if (pi.er != none)
 			return pi;
-	}
-
-	// Check if next token is true, false, null or this and needs expression
-	if (t.tp == RESWORD)
-	{
-		if (strcmp(t.lx, "true") == 0 || strcmp(t.lx, "false") == 0 || strcmp(t.lx, "null") == 0 || strcmp(t.lx, "this") == 0)
-		{
-			pi = Expression();
-
-			if (pi.er != none)
-				return pi;
-		}
 	}
 
 	NEXT_TOKEN

@@ -18,16 +18,20 @@ Date Work Commenced:
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
 #include "lexer.h"
 #include "parser.h"
 #include "symbols.h"
 #include "compiler.h"
+#include "codegeneration.h"
 
-void Test()
-{
-	printf("Compiler test\n");
-}
+bool secondPass = false;
+
+char** buildInFiles = NULL;
+int buildInFileCount = 0;
+char** directoryFiles = NULL;
+int directoryFileCount = 0;
 
 /// @brief Returns all files with .jack extension in the given directory. (From bing chat)
 /// @param dirPath Path to the directory.
@@ -81,44 +85,76 @@ int InitCompiler ()
 	return 1;
 }
 
-ParserInfo compile (char* dir_name)
+ParserInfo ParseBuildInFiles()
 {
-	printf("Starting compiler...\n");
-
 	ParserInfo p;
 	p.er = none;
 
-	int numFiles;
-	char** buildInFiles = getJackFiles(".", &numFiles);
+	if(secondPass == true)
+		return p;
 
-	for (int i = 0; i < numFiles; i++)
+	for (int i = 0; i < buildInFileCount; i++)
 	{
 		InitParser(buildInFiles[i]);
-		ParserInfo pi = Parse();
+		p = Parse();
 		StopParser();
 
-		if (pi.er != none)
+		if (p.er != none)
 		{
-			return pi;
+			return p;
 		}
 	}
 
-	char** directoryFiles = getJackFiles(dir_name, &numFiles);
+	return p;
+}
 
-	for (int i = 0; i < numFiles; i++)
+ParserInfo ParseDirectoryFiles(char* dir_name)
+{
+	ParserInfo p;
+	p.er = none;
+
+	for (int i = 0; i < directoryFileCount; i++)
 	{
 		char filePath[1024];
 		snprintf(filePath, sizeof(filePath), "%s/%s", dir_name, directoryFiles[i]);
-		
+
+		if (secondPass == true)
+			InitCodeGeneration(filePath);
+
 		InitParser(filePath);
-		ParserInfo pi = Parse();
+		p = Parse();
 		StopParser();
-		
-		if (pi.er != none)
+
+		if (secondPass == true)
+			StopCodeGeneration();
+
+		if (p.er != none)
 		{
-			return pi;
+			return p;
 		}
 	}
+
+	return p;
+}
+
+ParserInfo ParseFiles(char* dir_name)
+{
+	ParserInfo p;
+	p.er = none;
+
+	p = ParseBuildInFiles();
+
+	if (p.er != none)
+		return p;
+
+	p = ParseDirectoryFiles(dir_name);
+
+	if (p.er != none)
+		return p;
+
+	// If second pass is true, then we don't need to check for undeclared symbols.
+	if (secondPass == true)
+		return p;
 
 	Symbol* undeclared = SearchForUndeclaredSymbol();
 
@@ -129,6 +165,33 @@ ParserInfo compile (char* dir_name)
 		printf("Error: %s. Accured at line %d near %s token in file %s.\n", errorMessage, token.ln, token.lx, token.fl);
 		return undeclared->pi;
 	}
+
+	return p;
+}
+
+ParserInfo compile (char* dir_name)
+{
+	printf("Starting compiler...\n");
+
+	ParserInfo p;
+	p.er = none;
+
+	buildInFiles = getJackFiles(".", &buildInFileCount);
+	directoryFiles = getJackFiles(dir_name, &directoryFileCount);
+
+	secondPass = false;
+
+	p = ParseFiles(dir_name);
+
+	if (p.er != none)
+		return p;
+
+	secondPass = true;
+
+	p = ParseFiles(dir_name);
+
+	if (p.er != none)
+		return p;
 
 	return p;
 }
@@ -145,7 +208,7 @@ int StopCompiler ()
 int main ()
 {
 	InitCompiler ();
-	ParserInfo p = compile ("Pong");
+	ParserInfo p = compile ("HelloWorld");
 
 	if (p.er != none)
 		printf("Compilation failed\n");
