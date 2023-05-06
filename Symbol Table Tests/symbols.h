@@ -20,7 +20,7 @@ typedef struct
     Scope* parentScope;
     Scope* subScope;
     ParserInfo pi;
-    int adress;
+    int address;
 } Symbol;
 
 struct Scope

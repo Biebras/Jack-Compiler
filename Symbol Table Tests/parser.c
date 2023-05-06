@@ -112,7 +112,7 @@ Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, Parser
 	{
 		strcpy(symbol->type, type);
 		strcpy(symbol->kind, kind);
-		symbol->adress = GetSymbolAddress(symbol);
+		symbol->address = GetSymbolAddress(symbol);
 		symbol->pi = pi;
 		return symbol;
 	}

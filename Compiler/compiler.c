@@ -198,7 +198,7 @@ ParserInfo compile (char* dir_name)
 
 int StopCompiler ()
 {
-	PrintSymbolTable();
+	//PrintSymbolTable();
 	printf("Compiler stopped.\n");
 	FreeSymbolTable();
 	return 1;
@@ -208,7 +208,7 @@ int StopCompiler ()
 int main ()
 {
 	InitCompiler ();
-	ParserInfo p = compile ("HelloWorld");
+	ParserInfo p = compile ("Average");
 
 	if (p.er != none)
 		printf("Compilation failed\n");

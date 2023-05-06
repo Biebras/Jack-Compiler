@@ -95,12 +95,28 @@ int GetArgumentCount(Symbol* symbol)
     return count;
 }
 
+int GetLocalVarCount(Symbol* symbol)
+{
+    int count = 0;
+    Scope* scope = symbol->subScope;
+
+    for (int i = 0; i < scope->length; i++)
+    {
+        Symbol* s = scope->symbols[i];
+
+        if (strcmp(scope->symbols[i]->kind, "var") == 0 || strcmp(scope->symbols[i]->kind, "field") == 0 || strcmp(scope->symbols[i]->kind, "static") == 0)
+            count++;
+    }
+
+    return count;
+}
+
 void AddSymbol(Scope* scope, Symbol* symbol)
 {
     // Assign address
     symbol->parentScope = scope;
     int address = GetSymbolAddress(symbol);
-    symbol->adress = address;
+    symbol->address = address;
 
     // Add symbol to scope
     scope->symbols[scope->length] = symbol;
@@ -316,11 +332,11 @@ void PrintSymbol(Symbol* symbol)
 
     if (strcmp(symbol->type, "NULL") == 0 || strcmp(symbol->kind, "NULL") == 0)
     {
-        printf("(N: %s, T: %s, K: %s, A: %d, S: %s) <--- UNDECLARED\n", symbol->name, symbol->type, symbol->kind, symbol->adress, subScopeName);
+        printf("(N: %s, T: %s, K: %s, A: %d, S: %s) <--- UNDECLARED\n", symbol->name, symbol->type, symbol->kind, symbol->address, subScopeName);
         return;
     }
     
-    printf("(N: %s, T: %s, K: %s, A: %d, S: %s)\n", symbol->name, symbol->type, symbol->kind, symbol->adress, subScopeName);
+    printf("(N: %s, T: %s, K: %s, A: %d, S: %s)\n", symbol->name, symbol->type, symbol->kind, symbol->address, subScopeName);
 }
 
 void PrintScope(Scope* scope)

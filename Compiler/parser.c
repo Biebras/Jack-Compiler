@@ -116,7 +116,7 @@ Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, Parser
 	{
 		strcpy(symbol->type, type);
 		strcpy(symbol->kind, kind);
-		symbol->adress = GetSymbolAddress(symbol);
+		symbol->address = GetSymbolAddress(symbol);
 		symbol->pi = pi;
 		return symbol;
 	}
@@ -503,7 +503,8 @@ ParserInfo ParamList()
 	// If current scope is not a function, then create "this" symbol
 	if (strcmp(currentScope->scopeSymbol->kind, "function") != 0)
 	{
-		symbol = CreateSymbolAtCurrentScope("this", name, "argument", pi, 0);
+		if (secondPass == false)
+			symbol = CreateSymbolAtCurrentScope("this", name, "argument", pi, 0);
 	}
 
 	PEEK_TOKEN
@@ -533,13 +534,14 @@ ParserInfo ParamList()
 	// add symbol to LOCAL subroutine scope
 	symbol = FindSymbolAtCurrentScope(t.lx);
 
-	if (symbol != NULL)
+	if (symbol != NULL && secondPass == false)
 	{
 		Error(&pi, &t, redecIdentifier, "parameter already exists");
 		return pi;
 	}
 
-	CreateSymbolAtCurrentScope(t.lx, type, "argument", pi, 0);
+	if (secondPass == false)
+		CreateSymbolAtCurrentScope(t.lx, type, "argument", pi, 0);
 
 	PEEK_TOKEN
 
@@ -568,13 +570,14 @@ ParserInfo ParamList()
 
 		symbol = FindSymbolAtCurrentScope(t.lx);
 
-		if (symbol != NULL)
+		if (symbol != NULL && secondPass == false)
 		{
 			Error(&pi, &t, redecIdentifier, "parameter already exists");
 			return pi;
 		}
 
-		CreateSymbolAtCurrentScope(t.lx, type, "argument", pi, 0);
+		if (secondPass == false)
+			CreateSymbolAtCurrentScope(t.lx, type, "argument", pi, 0);
 
 		PEEK_TOKEN
 
@@ -731,13 +734,14 @@ ParserInfo VarDeclarStatement()
 		return pi;
 	}
 
-	if (FindSymbolAtCurrentScope(t.lx) != NULL)
+	if (FindSymbolAtCurrentScope(t.lx) != NULL && secondPass == false)
 	{
 		Error(&pi, &t, redecIdentifier, "variable already exists");
 		return pi;
 	}
 
-	CreateSymbolAtCurrentScope(t.lx, type, "var", pi, 0);
+	if (secondPass == false)
+		CreateSymbolAtCurrentScope(t.lx, type, "var", pi, 0);
 
 	PEEK_TOKEN
 
@@ -757,13 +761,14 @@ ParserInfo VarDeclarStatement()
 			return pi;
 		}
 
-		if (SearchSymbolFromCurrentScope(t.lx) != NULL)
+		if (SearchSymbolFromCurrentScope(t.lx) != NULL && secondPass == false)
 		{
 			Error(&pi, &t, redecIdentifier, "variable already exists");
 			return pi;
 		}
 
-		CreateSymbolAtCurrentScope(t.lx, type, "var", pi, 0);
+		if(secondPass == false)
+			CreateSymbolAtCurrentScope(t.lx, type, "var", pi, 0);
 
 		PEEK_TOKEN
 	}
@@ -804,8 +809,11 @@ ParserInfo LetStatement()
 		return pi;
 	}
 
+	Symbol* letVar = SearchSymbolFromCurrentScope(t.lx);
+	bool letArray = false;
+
 	// Check if symbol is in symbol table
-	if(SearchSymbolFromCurrentScope(t.lx) == NULL)
+	if(letVar == NULL)
 	{
 		char errorMsg[128];
 		safe_snprintf(errorMsg, sizeof(errorMsg), "variable (%s) not declared", t.lx);
@@ -826,6 +834,7 @@ ParserInfo LetStatement()
 	// if next token is [ then check for expression
 	if (strcmp(t.lx, "[") == 0)
 	{
+		letArray = true;
 		NEXT_TOKEN
 
 		pi = Expression();
@@ -837,6 +846,12 @@ ParserInfo LetStatement()
 		{
 			Error(&pi, &t, closeBraceExpected, "] expected");
 			return pi;
+		}
+
+		if (secondPass)
+		{
+			EmitPushLocal(letVar->address);
+			EmitCode("add\n");
 		}
 	}
 
@@ -861,6 +876,14 @@ ParserInfo LetStatement()
 	{
 		Error(&pi, &t, semicolonExpected, "; expected");
 		return pi;
+	}
+
+	if(secondPass == true)
+	{
+		if(letArray)
+			EmitLetArray(letVar->address);
+		else
+			EmitPopLocal(letVar->address);
 	}
 
 	return pi;
@@ -978,6 +1001,9 @@ ParserInfo WhileStatement()
 		return pi;
 	}
 
+	if(secondPass)
+		EmitStartWhile1();
+
 	NEXT_TOKEN
 
 	// Check if next token is (
@@ -1001,6 +1027,9 @@ ParserInfo WhileStatement()
 		return pi;
 	}
 
+	if(secondPass)
+		EmitStartWhile2();
+
 	NEXT_TOKEN
 
 	// Check if next token is {
@@ -1022,6 +1051,9 @@ ParserInfo WhileStatement()
 
 	// Skip }
 	NEXT_TOKEN
+
+	if(secondPass)
+		EmitEndWhile();
 
 	return pi;
 }
@@ -1083,15 +1115,14 @@ ParserInfo SubroutineCall()
 	PEEK_TOKEN
 
 	Symbol* subroutineSymbol = NULL;
+	Scope* classScope;
 
 	// Check if next token is .
 	if (t.tp == SYMBOL && strcmp(t.lx, ".") == 0)
 	{
 		//If next token is . then the identifier is a class name or variable name that references a class
 		char name[128];
-		Scope* classScope;
 		strcpy(name, identifier);
-
 		Symbol* symbol = SearchSymbolFromCurrentScope(name);
 		
 		// If symbol is not found then create a class
@@ -1139,7 +1170,7 @@ ParserInfo SubroutineCall()
 
 		if(subroutineSymbol == NULL)
 		{
-			Scope* classScope = FindParentClass();
+			classScope = FindParentClass();
 
 			if (classScope == NULL)
 			{
@@ -1304,6 +1335,9 @@ ParserInfo RelationalExpression()
 	//loop while next token is <, >, =
 	while (t.tp == SYMBOL && (strcmp(t.lx, "<") == 0 || strcmp(t.lx, ">") == 0 || strcmp(t.lx, "=") == 0))
 	{
+		char op[128];
+		strcpy(op, t.lx);
+
 		// Skip <, > or = token
 		NEXT_TOKEN
 
@@ -1313,6 +1347,16 @@ ParserInfo RelationalExpression()
 			return pi;
 
 		PEEK_TOKEN
+
+		if (secondPass == true)
+		{
+			if(strcmp(op, "<") == 0)
+				EmitCode("lt\n");
+			else if(strcmp(op, ">") == 0)
+				EmitCode("gt\n");
+			else if(strcmp(op, "=") == 0)
+				EmitCode("eq\n");
+		}
 	}
 
 	return pi;
@@ -1334,6 +1378,9 @@ ParserInfo ArithmeticExpression()
 	//loop while next token is + or -
 	while (t.tp == SYMBOL && (strcmp(t.lx, "+") == 0 || strcmp(t.lx, "-") == 0))
 	{
+		char op[128];
+		strcpy(op, t.lx);
+
 		// Skip + or - token
 		NEXT_TOKEN
 
@@ -1343,6 +1390,14 @@ ParserInfo ArithmeticExpression()
 			return pi;
 
 		PEEK_TOKEN
+
+		if (secondPass == true)
+		{
+			if(strcmp(op, "+") == 0)
+				EmitCode("add\n");
+			else if(strcmp(op, "-") == 0)
+				EmitCode("sub\n");
+		}
 	}
 	
 	return pi;
@@ -1364,6 +1419,9 @@ ParserInfo Term()
 	//loop while next token is * or /
 	while (t.tp == SYMBOL && (strcmp(t.lx, "*") == 0 || strcmp(t.lx, "/") == 0))
 	{
+		char op[128];
+		strcpy(op, t.lx);
+
 		// Skip * or / token
 		NEXT_TOKEN
 
@@ -1373,6 +1431,14 @@ ParserInfo Term()
 			return pi;
 
 		PEEK_TOKEN
+
+		if (secondPass == true)
+		{
+			if(strcmp(op, "*") == 0)
+				EmitMultiply();
+			else if(strcmp(op, "/") == 0)
+				EmitDivide();
+		}
 	}
 
 	return pi;
@@ -1415,6 +1481,9 @@ ParserInfo Operand()
 	// if int constant
 	if (t.tp == INT)
 	{
+		if(secondPass)
+			EmitPushConstant(atoi(t.lx));
+
 		// Skip int constant token
 		NEXT_TOKEN
 	}
@@ -1461,7 +1530,7 @@ ParserInfo Operand()
 		// Skip true, false or null token
 		NEXT_TOKEN
 	}
-	// if it's null or this
+	// if it's this
 	else if(t.tp == RESWORD && strcmp(t.lx, "this") == 0)
 	{
 		// Skip "this" token
@@ -1505,14 +1574,15 @@ ParserInfo OperantIdentifier()
 
 	PEEK_TOKEN
 
+	Symbol* idSymbol = NULL;
+	Scope* classScope = NULL;
+
 	//if nex token is "." then next token should be identifier
 	if (t.tp == SYMBOL && strcmp(t.lx, ".") == 0)
 	{
 		//If next token is . then the identifier is a class name or variable name that references a class
 		char name[128];
-		Scope* classScope;
 		strcpy(name, identifier);
-
 		Symbol* symbol = SearchSymbolFromCurrentScope(name);
 		
 		// If symbol is not found then create a class
@@ -1545,9 +1615,9 @@ ParserInfo OperantIdentifier()
 		}
 
 		// Check if subroutine is declared
-		Symbol* subroutineSymbol = SearchGlobalSymbol(classScope->scopeSymbol->name, t.lx);
+		idSymbol = SearchGlobalSymbol(classScope->scopeSymbol->name, t.lx);
 
-		if (subroutineSymbol == NULL)
+		if (idSymbol == NULL)
 		{
 			// Create undecleared subroutine
 			CreateSymbolAtScope(classScope, t.lx, "NULL", "NULL", pi, 1);
@@ -1559,12 +1629,12 @@ ParserInfo OperantIdentifier()
 	else
 	{
 		// If next token is not . then the identifier is a subroutine name
-		Symbol* subroutineSymbol = SearchSymbolFromCurrentScope(identifier);
+		idSymbol = SearchSymbolFromCurrentScope(identifier);
 
 		// Check if subroutine is declared
-		if (subroutineSymbol == NULL)
+		if (idSymbol == NULL)
 		{
-			Scope* classScope = FindParentClass();
+			classScope = FindParentClass();
 
 			if (classScope == NULL)
 			{
@@ -1596,6 +1666,11 @@ ParserInfo OperantIdentifier()
 			Error(&pi, &t, closeBracketExpected, "Close bracket expected");
 			return pi;
 		}
+
+		if(secondPass)
+		{
+			EmitAccessArray(idSymbol->address);
+		}
 	}
 	// if next token is (
 	else if(t.tp == SYMBOL && strcmp(t.lx, "(") == 0)
@@ -1615,6 +1690,18 @@ ParserInfo OperantIdentifier()
 		{
 			Error(&pi, &t, closeParenExpected, "Close parenthesis expected");
 			return pi;
+		}
+
+		if(secondPass)
+		{
+			EmitCall1(idSymbol);
+		}
+	}
+	else
+	{
+		if (secondPass)
+		{
+			EmitPushLocal(idSymbol->address);
 		}
 	}
 	

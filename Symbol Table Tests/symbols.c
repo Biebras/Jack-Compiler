@@ -84,7 +84,7 @@ void AddSymbol(Scope* scope, Symbol* symbol)
     // Assign address
     symbol->parentScope = scope;
     int address = GetSymbolAddress(symbol);
-    symbol->adress = address;
+    symbol->address = address;
 
     // Add symbol to scope
     scope->symbols[scope->length] = symbol;
@@ -300,11 +300,11 @@ void PrintSymbol(Symbol* symbol)
 
     if (strcmp(symbol->type, "NULL") == 0 || strcmp(symbol->kind, "NULL") == 0)
     {
-        printf("(N: %s, T: %s, K: %s, A: %d, S: %s) <--- UNDECLARED\n", symbol->name, symbol->type, symbol->kind, symbol->adress, subScopeName);
+        printf("(N: %s, T: %s, K: %s, A: %d, S: %s) <--- UNDECLARED\n", symbol->name, symbol->type, symbol->kind, symbol->address, subScopeName);
         return;
     }
     
-    printf("(N: %s, T: %s, K: %s, A: %d, S: %s)\n", symbol->name, symbol->type, symbol->kind, symbol->adress, subScopeName);
+    printf("(N: %s, T: %s, K: %s, A: %d, S: %s)\n", symbol->name, symbol->type, symbol->kind, symbol->address, subScopeName);
 }
 
 void PrintScope(Scope* scope)
