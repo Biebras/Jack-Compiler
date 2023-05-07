@@ -11,7 +11,7 @@
 #include "codegeneration.h"
 
 void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char* errorMessage);
-static void PrintError(char* errorMessage, ParserInfo* parserInfo);
+static void PrintErrorCombine(char* errorMessage, ParserInfo* parserInfo);
 Token GetNextTokenWithErrorCheck(ParserInfo *pi);
 Token PeekNextTokenWithErrorCheck(ParserInfo *pi);
 Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, ParserInfo pi, int createSubScope);
@@ -62,7 +62,7 @@ void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char*
 {
 	parserInfo->er = syntaxError;
 	parserInfo->tk = *token;
-	PrintError(errorMessage, parserInfo);
+	PrintErrorCombine(errorMessage, parserInfo);
 }
 
 void TokenError(ParserInfo* parserInfo, Token* token)
@@ -72,7 +72,7 @@ void TokenError(ParserInfo* parserInfo, Token* token)
 	printf("%s at line %d in file %s.", token->lx, token->ln, token->fl);
 }
 
-static void PrintError(char* errorMessage, ParserInfo* parserInfo)
+static void PrintErrorCombine(char* errorMessage, ParserInfo* parserInfo)
 {
 	Token token = parserInfo->tk;
 	printf("Error: %s. Accured at line %d near %s token in file %s.\n", errorMessage, token.ln, token.lx, token.fl);
