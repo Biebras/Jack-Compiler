@@ -1,5 +1,5 @@
 function Bat.new 0
-push constant 5
+push constant 6
 call Memory.alloc 1
 pop pointer 0
 push argument 0
@@ -12,6 +12,8 @@ push argument 3
 pop this 3
 push constant 2
 pop this 4
+push constant 8
+pop this 5
 push pointer 0
 call Bat.show 1
 pop temp 0
@@ -105,7 +107,7 @@ if-goto IF_TRUE0
 goto IF_FALSE0
 label IF_TRUE0
 push this 0
-push constant 4
+push this 5
 sub
 pop this 0
 push this 0
@@ -129,7 +131,7 @@ push this 1
 push this 0
 push this 2
 add
-push constant 4
+push this 5
 add
 push this 1
 push this 3
@@ -153,7 +155,7 @@ pop temp 0
 goto IF_END0
 label IF_FALSE0
 push this 0
-push constant 4
+push this 5
 add
 pop this 0
 push this 0
@@ -173,7 +175,7 @@ push constant 0
 call Screen.setColor 1
 pop temp 0
 push this 0
-push constant 4
+push this 5
 sub
 push this 1
 push this 0

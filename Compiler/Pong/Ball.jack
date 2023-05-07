@@ -19,6 +19,7 @@ class Ball {
     field int leftWall, rightWall, topWall, bottomWall;  // wall locations
    
     field int wall;   // last wall that the ball was bounced off of
+    field int speed;
 
     /** Constructs a new ball with the given initial location and wall locations. */
     constructor Ball new(int Ax, int Ay,
@@ -29,6 +30,7 @@ class Ball {
 	    let rightWall = ArightWall - 6;    // -6 for ball size
 	    let topWall = AtopWall; 
 	    let bottomWall = AbottomWall - 6;  // -6 for ball size
+        let speed = 8;
 	    let wall = 0;
         do show();
         return this;
@@ -113,22 +115,22 @@ class Ball {
             let d = d + diagonalD;
 
             if (positivey) {
-                if (invert) { let x = x + 4; }
-                else { let y = y + 4; }
+                if (invert) { let x = x + speed; }
+                else { let y = y + speed; }
             }
             else {
-                if (invert) { let x = x - 4; }
-                else { let y = y - 4; }
+                if (invert) { let x = x - speed; }
+                else { let y = y - speed; }
             }
 	    }
 
         if (positivex) {
-            if (invert) { let y = y + 4; }
-            else { let x = x + 4; }
+            if (invert) { let y = y + speed; }
+            else { let x = x + speed; }
 	    }
 	    else {
-            if (invert) { let y = y - 4; }
-            else { let x = x - 4; }
+            if (invert) { let y = y - speed; }
+            else { let x = x - speed; }
 	    }
 
 	    if (~(x > leftWall)) {
