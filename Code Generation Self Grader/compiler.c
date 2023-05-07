@@ -208,7 +208,7 @@ int StopCompiler ()
 int main ()
 {
 	InitCompiler ();
-	ParserInfo p = compile ("Square");
+	ParserInfo p = compile ("Pong");
 
 	if (p.er != none)
 		printf("Compilation failed\n");

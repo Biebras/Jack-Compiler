@@ -25,6 +25,7 @@ push pointer 0
 pop local 0
 label WHILE_EXP0
 push local 0
+push constant 0
 eq
 not
 not
@@ -47,6 +48,7 @@ function List.dispose 0
 push argument 0
 pop pointer 0
 push this 1
+push constant 0
 eq
 not
 if-goto IF_TRUE0

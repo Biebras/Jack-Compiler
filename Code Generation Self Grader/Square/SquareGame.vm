@@ -173,7 +173,7 @@ call SquareGame.moveSquare 1
 pop temp 0
 goto WHILE_EXP2
 label WHILE_END2
-goto WHILE_EXP2
-label WHILE_END2
+goto WHILE_EXP0
+label WHILE_END0
 push constant 0
 return

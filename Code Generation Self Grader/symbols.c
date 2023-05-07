@@ -104,7 +104,7 @@ int GetGlobalVarCount(Scope* classScope)
     {
         Symbol* s = scope->symbols[i];
 
-        if (strcmp(scope->symbols[i]->kind, "field") == 0 || strcmp(scope->symbols[i]->kind, "static") == 0)
+        if (strcmp(scope->symbols[i]->kind, "field") == 0)
             count++;
     }
 

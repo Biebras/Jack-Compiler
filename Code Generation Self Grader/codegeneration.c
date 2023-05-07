@@ -87,6 +87,12 @@ void EmitPop(Symbol* symbol)
         return;
     }
 
+    if(strcmp(symbol->kind, "static") == 0)
+    {
+        EmitCode("pop static %d\n", address);
+        return;
+    }
+
     if(strcmp(symbol->kind, "argument") == 0)
     {
         EmitCode("pop argument %d\n", address);
@@ -111,6 +117,12 @@ void EmitPush(Symbol* symbol)
     if(strcmp(symbol->name, "this") == 0)
     {
         EmitCode("push pointer 0\n");
+        return;
+    }
+
+    if(strcmp(symbol->kind, "static") == 0)
+    {
+        EmitCode("push static %d\n", address);
         return;
     }
 
@@ -196,35 +208,52 @@ void EmitCall2(char* className, char* functionName, int argumentCount)
     EmitCode("call %s.%s %d\n", className, functionName, argumentCount);
 }
 
-void EmitStartWhile1()
+int EmitStartWhile1()
 {
-    EmitCode("label WHILE_EXP%d\n", whileCount);
+    int whileIndex = whileCount;
+    EmitCode("label WHILE_EXP%d\n", whileIndex);
     whileCount++;
+    return whileIndex;
 }
 
-void EmitStartWhile2()
+void EmitStartWhile2(int whileIndex)
 {
     EmitCode("not\n");
-    EmitCode("if-goto WHILE_END%d\n", whileCount - 1);
+    EmitCode("if-goto WHILE_END%d\n", whileIndex);
 }
 
-void EmitEndWhile()
+void EmitEndWhile(int whileIndex)
 {
-    EmitCode("goto WHILE_EXP%d\n", whileCount - 1);
-    EmitCode("label WHILE_END%d\n", whileCount - 1);
+    EmitCode("goto WHILE_EXP%d\n", whileIndex);
+    EmitCode("label WHILE_END%d\n", whileIndex);
 }
 
-void EmitStartIf()
+int EmitIfStart()
 {
-    EmitCode("if-goto IF_TRUE%d\n", ifCount);
-    EmitCode("goto IF_FALSE%d\n", ifCount);
-    EmitCode("label IF_TRUE%d\n", ifCount);
+    int ifIndex = ifCount;
+
+    EmitCode("if-goto IF_TRUE%d\n", ifIndex);
+    EmitCode("goto IF_FALSE%d\n", ifIndex);
+    EmitCode("label IF_TRUE%d\n", ifIndex);
     ifCount++;
+
+    return ifIndex;
 }
 
-void EmitEndIf()
+void EmitIfEnd(int ifIndex)
 {
-    EmitCode("label IF_FALSE%d\n", ifCount - 1);
+    EmitCode("label IF_FALSE%d\n", ifIndex);
+}
+
+void EmitElseStart(int ifIndex)
+{
+    EmitCode("goto IF_END%d\n", ifIndex);
+    EmitCode("label IF_FALSE%d\n", ifIndex);
+}
+
+void EmitElseEnd(int ifIndex)
+{
+    EmitCode("label IF_END%d\n", ifIndex);
 }
 
 void EmitString(char* string)

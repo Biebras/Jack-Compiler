@@ -941,8 +941,9 @@ ParserInfo IfStatement()
 		return pi;
 	}
 
+	int ifIndex = 0;
 	if(secondPass)
-		EmitStartIf();
+		ifIndex = EmitIfStart();
 
 	NEXT_TOKEN
 
@@ -972,6 +973,9 @@ ParserInfo IfStatement()
 	// Check if next token is else
 	if (t.tp == RESWORD && strcmp(t.lx, "else") == 0)
 	{
+		if(secondPass)
+			EmitElseStart(ifIndex);
+
 		// Skip else keyword
 		NEXT_TOKEN
 
@@ -998,10 +1002,15 @@ ParserInfo IfStatement()
 
 		// Skip }
 		NEXT_TOKEN
-	}
 
-	if (secondPass)
-		EmitEndIf();
+		if(secondPass)
+			EmitElseEnd(ifIndex);
+	}
+	else
+	{
+		if(secondPass)
+			EmitIfEnd(ifIndex);
+	}
 
 	return pi;
 }
@@ -1021,8 +1030,9 @@ ParserInfo WhileStatement()
 		return pi;
 	}
 
+	int whileIndex = 0;
 	if(secondPass)
-		EmitStartWhile1();
+		whileIndex = EmitStartWhile1();
 
 	NEXT_TOKEN
 
@@ -1048,7 +1058,7 @@ ParserInfo WhileStatement()
 	}
 
 	if(secondPass)
-		EmitStartWhile2();
+		EmitStartWhile2(whileIndex);
 
 	NEXT_TOKEN
 
@@ -1073,7 +1083,7 @@ ParserInfo WhileStatement()
 	NEXT_TOKEN
 
 	if(secondPass)
-		EmitEndWhile();
+		EmitEndWhile(whileIndex);
 
 	return pi;
 }
@@ -1578,6 +1588,9 @@ ParserInfo Operand()
 	}
 	else if (t.tp == RESWORD && strcmp(t.lx, "null") == 0)
 	{
+		if(secondPass)
+			EmitPushConstant(0);
+
 		NEXT_TOKEN
 	}
 	else if (t.tp == RESWORD && strcmp(t.lx, "false") == 0)
