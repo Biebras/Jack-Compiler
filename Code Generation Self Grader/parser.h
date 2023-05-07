@@ -43,6 +43,4 @@ typedef struct
 int InitParser (char* file_name); // initialise the parser to parse source code in file_name
 ParserInfo Parse (); // parse the input file (the one passed to InitParser)
 int StopParser (); // stop the parser and do any necessary clean up
-char* ErrorString (SyntaxErrors e);
-void PrintError (ParserInfo pn);
 #endif

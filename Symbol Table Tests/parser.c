@@ -9,7 +9,7 @@
 #include "compiler.h"
 
 void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char* errorMessage);
-static void PrintError(char* errorMessage, ParserInfo* parserInfo);
+static void PrintError1(char* errorMessage, ParserInfo* parserInfo);
 Token GetNextTokenWithErrorCheck(ParserInfo *pi);
 Token PeekNextTokenWithErrorCheck(ParserInfo *pi);
 Symbol* DeclareSymbol(Symbol* symbol, char* name, char* type, char* kind, ParserInfo pi, int createSubScope);
@@ -58,7 +58,7 @@ void Error(ParserInfo* parserInfo, Token* token, SyntaxErrors syntaxError, char*
 {
 	parserInfo->er = syntaxError;
 	parserInfo->tk = *token;
-	PrintError(errorMessage, parserInfo);
+	PrintError1(errorMessage, parserInfo);
 }
 
 void TokenError(ParserInfo* parserInfo, Token* token)
@@ -68,7 +68,7 @@ void TokenError(ParserInfo* parserInfo, Token* token)
 	printf("%s at line %d in file %s.", token->lx, token->ln, token->fl);
 }
 
-static void PrintError(char* errorMessage, ParserInfo* parserInfo)
+static void PrintError1(char* errorMessage, ParserInfo* parserInfo)
 {
 	Token token = parserInfo->tk;
 	printf("Error: %s. Accured at line %d near %s token in file %s.\n", errorMessage, token.ln, token.lx, token.fl);
@@ -489,10 +489,15 @@ ParserInfo ParamList()
 	Scope* currentScope = GetCurrentScope();
 	Symbol* symbol;
 
-	// If current scope is not a function, then create "this" symbol
-	if (strcmp(currentScope->scopeSymbol->kind, "function") != 0)
+		// If current scope is not a function, then create "this" symbol
+	if (strcmp(currentScope->scopeSymbol->kind, "method") == 0)
 	{
 		symbol = CreateSymbolAtCurrentScope("this", name, "argument", pi, 0);
+	}
+
+	if (strcmp(currentScope->scopeSymbol->kind, "constructor") == 0)
+	{
+			symbol = CreateSymbolAtCurrentScope("this", name, "THIS", pi, 0);
 	}
 
 	PEEK_TOKEN
